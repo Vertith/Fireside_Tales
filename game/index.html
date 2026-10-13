@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- BUNDLE:HEAD -->
+<title>Emit Time</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=VT323&display=swap">
+<link rel="stylesheet" href="css/game.css">
+<!-- /BUNDLE:HEAD -->
+</head>
+<body class="wide">
+<!-- BUNDLE:BODY -->
+<div id="app">
+  <header id="topbar">
+    <span class="brand">Emit Time</span>
+    <nav aria-label="Desk">
+      <button id="btn-notebook" type="button">Notebook<span class="badge" id="nb-badge" hidden></span></button>
+      <button id="btn-list" type="button">Visitor list</button>
+      <button id="btn-sound" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-menu" type="button">Menu</button>
+    </nav>
+  </header>
+
+  <div id="frame">
+    <div id="stage">
+      <canvas id="screen" width="480" height="270" aria-label="The front desk of Science Corp at night"></canvas>
+      <div id="onart" aria-hidden="true">
+        <pre id="crt-text"></pre>
+        <div id="radio-text"></div>
+      </div>
+      <div id="hots"></div>
+      <div id="ui" data-active="narr">
+        <p id="narr" aria-live="polite"></p>
+        <div id="transcript" aria-live="polite">
+          <b id="who"></b>
+          <p id="line"></p>
+          <div id="controls">
+            <button id="btn-skip" type="button" hidden>I've heard this before — Skip</button>
+            <button id="btn-next" type="button">Next ▸</button>
+          </div>
+        </div>
+        <div id="pad" hidden>
+          <b id="pad-title">Ask</b>
+          <div id="questions"></div>
+        </div>
+        <div id="actions" hidden></div>
+        <div id="zoom" hidden role="dialog" aria-label="Close-up">
+          <button id="zoom-close" type="button" aria-label="Close">X</button>
+          <canvas id="zoom-art" width="32" height="24"></canvas>
+          <b id="zoom-title"></b>
+          <p id="zoom-text"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- title -->
+<div class="overlay" id="title-overlay">
+  <div class="card">
+    <span class="eyebrow">Science Corp · Night shift</span>
+    <h1 class="title-word">EMIT TIME</h1>
+    <div class="title-mirror" aria-hidden="true">EMIT TIME</div>
+    <p>It's 1993, you're a security guard and watch the front desk of a research lab. Tonight someone cracks time travel, and people from other times start arriving. Will you make the right decisions? Only time can tell.</p>
+    <p id="title-note"></p>
+    <div class="buttons">
+      <button class="big" id="title-start" type="button">Start the shift</button>
+      <button class="big danger" id="title-wipe" type="button" hidden>Wipe memory</button>
+    </div>
+  </div>
+</div>
+
+<!-- loop reset -->
+<div class="overlay" id="reset-overlay" hidden>
+  <div class="card">
+    <span class="eyebrow" id="reset-loop">Loop 2</span>
+    <p class="reason" id="reset-reason"></p>
+    <p>The light again. The rain again. The desk, the thermos, the crossword. Whatever you learned, you still know it.</p>
+    <div class="buttons"><button class="big" id="reset-go" type="button">Back to the first flash</button></div>
+  </div>
+</div>
+
+<!-- end of the slice -->
+<div class="overlay act" id="act-overlay" hidden>
+  <div class="card">
+    <span class="eyebrow" id="act-eyebrow"></span>
+    <h2 class="title-word small" id="act-title"></h2>
+    <p class="act-hint">Click to continue</p>
+  </div>
+</div>
+
+<div class="overlay" id="end-overlay" hidden>
+  <div class="card">
+    <span class="eyebrow" id="end-eyebrow">6:12 AM</span>
+    <h2 class="title-word small" id="end-title">Morning.</h2>
+    <p id="end-text">You made it to morning.</p>
+    <div class="stats" id="end-stats"></div>
+    <div class="buttons">
+      <button class="big" id="end-again" type="button">Relive the night</button>
+      <button class="big ghost" id="end-notebook" type="button">Read the notebook</button>
+    </div>
+  </div>
+</div>
+
+<!-- notebook -->
+<div class="overlay" id="notebook-overlay" hidden data-dismiss>
+  <div class="sheet notebook" role="dialog" aria-labelledby="nb-title">
+    <button class="close" type="button" data-close>Close</button>
+    <h2 id="nb-title">Guard's notebook</h2>
+    <p class="sub">Kept across every loop. Underlined lines are new this time through.</p>
+    <div id="notebook-body"></div>
+  </div>
+</div>
+
+<!-- visitor list -->
+<div class="overlay" id="list-overlay" hidden data-dismiss>
+  <div class="sheet" role="dialog" aria-labelledby="list-title">
+    <button class="close" type="button" data-close>Close</button>
+    <h2 id="list-title">After-hours visitors</h2>
+    <p class="sub">Science Corp front desk · tonight</p>
+    <div id="list-body"></div>
+  </div>
+</div>
+
+<!-- menu -->
+<div class="overlay" id="menu-overlay" hidden data-dismiss>
+  <div class="sheet" role="dialog" aria-labelledby="menu-title">
+    <button class="close" type="button" data-close>Close</button>
+    <h2 id="menu-title">Menu</h2>
+    <p class="sub">Click the booth or press Space to continue. S skips a line you've heard. 1 to 9 asks a question. Click a visitor to look closer.</p>
+    <div class="menu-list">
+      <button id="menu-restart" type="button">Go back to the first flash (counts as a loop)</button>
+      <button id="menu-wipe" class="danger" type="button">Wipe memory and start over</button>
+    </div>
+  </div>
+</div>
+<!-- /BUNDLE:BODY -->
+
+<!-- BUNDLE:SCRIPTS -->
+<script src="js/art.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/radio.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/content/characters.js"></script>
+<script src="js/content/opening.js"></script>
+<script src="js/content/visitors.js"></script>
+<script src="js/content/demo-visitors.js"></script>
+<script src="js/content/act1.js"></script>
+<script src="js/content/act2.js"></script>
+<script src="js/content/act3a.js"></script>
+<script src="js/content/act3b.js"></script>
+<script src="js/content/act4.js"></script>
+<script src="js/content/story.js"></script>
+<script src="js/content/night.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+<!-- /BUNDLE:SCRIPTS -->
+</body>
+</html>

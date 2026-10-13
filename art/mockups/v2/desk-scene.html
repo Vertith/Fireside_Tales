@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emit Time Style Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen&display=swap" rel="stylesheet">
+<style>
+  /* Layout: Papers, Please split. Exterior strip on top, booth window bottom-left, desk bottom-right. */
+  :root {
+    --night0:#101114; --night1:#1d1e22; --night2:#2c2d31; --night3:#43443f; --fog:#8c8b7d;
+    --paper:#cfc6a8; --paper-shade:#a49c80; --lamp:#d8be84;
+    --crt:#8fd0a0; --red:#9a3a32; --green:#4d6b3a;
+    color-scheme: dark;
+  }
+  html, body { margin:0; background:var(--night0); color:var(--paper); }
+  body { display:flex; flex-direction:column; align-items:center; gap:12px; padding-block:24px; padding-inline:16px; box-sizing:border-box; font-family:'VT323', monospace; }
+  #wrap { width:100%; max-width:1440px; aspect-ratio:16/9; position:relative; }
+  #stage { position:absolute; left:0; top:0; width:480px; height:270px; transform-origin:0 0; overflow:hidden; }
+  canvas { width:480px; height:270px; image-rendering:pixelated; display:block; }
+  .ov { position:absolute; }
+  /* transcript printout, Papers, Please style */
+  #transcript { left:214px; top:70px; width:128px; height:56px; background:var(--paper); color:var(--night0); font-size:8.5px; line-height:7.5px; padding:3px 4px; box-sizing:border-box; overflow:hidden; box-shadow:2px 2px 0 var(--night0); }
+  #transcript b { font-family:'Silkscreen', monospace; font-size:5px; display:block; margin-bottom:2px; letter-spacing:.5px; color:var(--red); }
+  #crt { left:358px; top:77px; width:56px; height:36px; color:var(--crt); font-size:6.5px; line-height:6px; overflow:hidden; white-space:pre; }
+  #clock { left:10px; top:240px; font-size:10px; color:var(--lamp); line-height:9px; }
+  #clock span { color:var(--fog); }
+  #narr { left:8px; top:216px; width:136px; font-size:8px; line-height:8px; color:var(--paper-shade); font-style:italic; }
+  #actions { left:296px; top:236px; display:grid; grid-template-columns:repeat(4, auto); gap:3px; }
+  #actions button { font-family:'Silkscreen', monospace; font-size:5px; line-height:6px; padding:3px 3px; border:1px solid var(--night0); color:var(--paper); box-shadow:1px 1px 0 var(--night0); cursor:pointer; }
+  #actions .let { background:var(--green); }
+  #actions .turn { background:var(--red); }
+  #actions .drawer { background:var(--night3); }
+  #actions button[disabled] { background:var(--night2); color:var(--night3); cursor:not-allowed; }
+  .hot { position:absolute; border:1px dashed transparent; cursor:zoom-in; }
+  .hot:hover, .hot:focus { border-color:var(--lamp); outline:none; }
+  #zoom { left:214px; top:132px; width:200px; background:var(--night1); border:1px solid var(--lamp); padding:5px; box-shadow:3px 3px 0 var(--night0); }
+  #zoom canvas { width:64px; height:48px; float:left; margin-right:5px; border:1px solid var(--night3); }
+  #zoom p { margin:0; font-size:9px; line-height:9px; color:var(--paper); }
+  #zoom small { font-family:'Silkscreen', monospace; font-size:5px; color:var(--lamp); display:block; margin-bottom:3px; }
+  #controls { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width:1440px; }
+  #controls button { font-family:'VT323', monospace; font-size:18px; background:var(--night2); color:var(--paper); border:1px solid var(--night3); padding:4px 12px; cursor:pointer; }
+  #controls button.on { background:var(--lamp); color:var(--night0); }
+  #controls button:focus-visible, #actions button:focus-visible { outline:2px dashed var(--lamp); outline-offset:2px; }
+  #note { font-size:16px; color:var(--fog); max-width:900px; text-align:center; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="c" width="480" height="270"></canvas>
+    <div class="ov" id="transcript"><b id="who"></b><span id="line"></span></div>
+    <div class="ov" id="crt"></div>
+    <div class="ov" id="narr"></div>
+    <div class="ov" id="clock">OCT 13 <span id="time"></span><br><span>NIGHT SHIFT</span></div>
+    <div id="hots"></div>
+    <div class="ov" id="zoom" hidden><canvas id="zc" width="32" height="24"></canvas><small id="ztitle"></small><p id="ztext"></p></div>
+    <div class="ov" id="actions">
+      <button class="let">LET<br>THROUGH</button><button class="turn">TURN<br>AWAY</button><button class="drawer" title="Revolver drawer">DRAWER<br>(SHOOT)</button><button disabled title="Unlocks later">DEVICE<br>LOCKED</button>
+    </div>
+  </div>
+</div>
+<div id="controls">
+  <button data-v="scientist" class="on">The scientist</button>
+  <button data-v="assassin">The assassin</button>
+  <button data-v="gent">1920s gentleman</button>
+  <button data-v="android">Android inspector</button>
+  <button id="flashBtn">Trigger flash</button>
+</div>
+<div id="note">Style mockup v2 at the native 480×270 canvas, scaled up with nearest-neighbour. Hover a visitor in the booth window to find the inspection spots, click to zoom.</div>
+
+<script>
+// Drab, Papers, Please-leaning palette. Ramps run dark to light.
+const P = {
+  night0:'#101114', night1:'#1d1e22', night2:'#2c2d31', night3:'#43443f', steel:'#5f6058', fog:'#8c8b7d',
+  wood0:'#2b2519', wood1:'#3e3624', wood2:'#574c33', wood3:'#74663f', lamp3:'#a88a52', lamp4:'#d8be84',
+  paper:'#cfc6a8', paperShade:'#a49c80', paperDark:'#605a48',
+  plastic0:'#57534a', plastic1:'#7f796a', plastic2:'#a8a08a',
+  skinA0:'#563a2e', skinA1:'#8e6450', skinA2:'#bd9074',
+  skinB0:'#3a271e', skinB1:'#634434', skinB2:'#8c6650',
+  brown0:'#2b2420', brown1:'#463a30', brown2:'#67574a',
+  suit0:'#2a2e2c', suit1:'#3f4541', suit2:'#5a615b',
+  crt0:'#13241a', crt1:'#3d7a52', crt2:'#8fd0a0',
+  red0:'#5a2222', red1:'#9a3a32', green1:'#4d6b3a',
+  fut0:'#2a6a78', fut1:'#58c8dc', fut2:'#b6eaf0',
+  flash:'#eef0e8',
+};
+const c = document.getElementById('c');
+let g = c.getContext('2d');
+g.imageSmoothingEnabled = false;
+
+function R(x,y,w,h,col){ g.fillStyle=col; g.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
+function E(cx,cy,rx,ry,col){ g.fillStyle=col; for(let y=-ry;y<=ry;y++){ const w=Math.round(rx*Math.sqrt(Math.max(0,1-(y*y)/(ry*ry)))); g.fillRect(cx-w,cy+y,w*2+1,1);} }
+function poly(pts,col){ // scanline fill, no anti-aliasing
+  g.fillStyle=col; let minY=Infinity,maxY=-Infinity; pts.forEach(p=>{minY=Math.min(minY,p[1]);maxY=Math.max(maxY,p[1]);});
+  for(let y=Math.floor(minY);y<=Math.ceil(maxY);y++){ const xs=[];
+    for(let i=0;i<pts.length;i++){ const [x1,y1]=pts[i],[x2,y2]=pts[(i+1)%pts.length];
+      if((y1<=y&&y2>y)||(y2<=y&&y1>y)) xs.push(x1+(y-y1)*(x2-x1)/(y2-y1)); }
+    xs.sort((a,b)=>a-b); for(let i=0;i<xs.length;i+=2) g.fillRect(Math.round(xs[i]),y,Math.round(xs[i+1])-Math.round(xs[i]),1); }
+}
+
+let t = 0, visitor = 'scientist', flashT = -1;
+const params = new URLSearchParams(location.search);
+const holdFlash = !!params.get('flash');
+const rain = Array.from({length:60},()=>({x:Math.random()*480,y:Math.random()*60,s:2+Math.random()*2}));
+const queue = [{x:150,u:true},{x:172,u:false},{x:192,u:true}];
+
+// ---------- top strip: the outside, seen from the side ----------
+function exterior(){
+  R(0,0,480,64,P.night1);
+  for(let i=0;i<14;i++){ const h=10+((i*29)%18); R(i*22,46-h,18,h,P.night2); }
+  // Science Corp building
+  R(300,6,180,52,P.night2); R(300,6,180,2,P.night3);
+  for(let r=0;r<3;r++) for(let q=0;q<7;q++){ const lit=((r*7+q)*13)%5===0; R(306+q*24,14+r*12,12,6,lit?P.lamp3:P.night1); }
+  R(326,38,30,20,P.night0); R(340,38,1,20,P.steel); R(324,36,34,2,P.steel);
+  g.fillStyle=P.fog; g.font='6px Silkscreen, monospace'; g.fillText('SCIENCE CORP',372,52);
+  // street lamp
+  R(40,14,2,44,P.steel); R(36,12,12,3,P.steel); R(38,15,8,1,P.lamp4);
+  // wet ground with flat reflection bands
+  R(0,56,480,8,P.night3); R(0,56,480,1,P.steel);
+  R(34,58,16,1,P.lamp3); R(30,61,24,1,P.wood2); R(328,59,26,1,P.night1);
+  // the queue: silhouettes walking toward the doors, umbrellas up
+  queue.forEach(q=>{ const x=(q.x+t*0.05)%300;
+    R(x,40,6,16,P.night0); E(x+3,37,3,3,P.night0);
+    if(q.u){ poly([[x-6,32],[x+12,32],[x+3,26]],P.night0); R(x+3,32,1,6,P.night0); }
+  });
+  rain.forEach(d=>{ d.y+=d.s*0.6; d.x-=0.3; if(d.y>58){d.y=0;d.x=Math.random()*490;}
+    R(d.x,d.y,1,2,P.steel); });
+  R(0,64,480,2,P.night0);
+}
+
+// ---------- bottom-left: the booth window ----------
+function boothBack(){
+  R(0,66,208,190,P.night2);
+  R(0,150,208,40,P.night3); R(0,150,208,1,P.steel); // lobby wainscot
+  R(16,82,30,38,P.paperShade); R(18,84,26,6,P.red1); // sign-in poster
+  for(let i=0;i<5;i++) R(20,94+i*5,22-(i*5)%9,1,P.paperDark);
+  R(170,88,22,22,P.night1); R(172,90,18,18,P.paperShade); R(181,92,1,8,P.night0); R(181,99,5,1,P.night0); // wall clock
+}
+function boothFront(){
+  R(0,66,4,146,P.steel); R(204,66,4,146,P.steel); R(0,66,208,3,P.steel);
+  // glass glare, two flat diagonal bands
+  poly([[20,69],[30,69],[4,110],[4,94]],'rgba(140,139,125,.10)');
+  poly([[150,69],[156,69],[110,140],[104,140]],'rgba(140,139,125,.07)');
+  // ledge with document tray
+  R(0,196,208,14,P.wood2); R(0,196,208,2,P.wood3); R(70,200,68,8,P.wood0); R(72,200,64,2,P.night0);
+  R(0,210,208,60,P.night1); R(0,210,208,1,P.night0);
+  // speaker grille
+  R(150,216,46,18,P.night2); for(let i=0;i<5;i++) R(153+i*9,219,5,12,P.night0);
+}
+
+// ---------- bottom-right: the desk ----------
+function desk(){
+  R(208,66,272,204,P.wood1);
+  for(let y=72;y<270;y+=12) R(208,y,272,1,P.wood0);
+  // flat, stepped lamp pool from the top-right lamp (no gradients)
+  E(440,150,70,60,P.wood2); E(446,132,38,32,P.wood3);
+  R(436,66,30,4,P.night0); R(448,70,4,20,P.night3); poly([[434,90],[468,90],[462,104],[440,104]],P.night3); R(440,104,22,2,P.lamp4);
+  // CRT
+  R(350,70,72,52,P.plastic1); R(352,72,68,48,P.plastic2); R(356,76,60,38,P.night0); R(357,77,58,36,P.crt0);
+  for(let y=77;y<113;y+=2) R(357,y,58,1,P.night1);
+  R(412,116,4,2,P.crt2);
+  // clipboard visitor list
+  R(216,134,64,128,P.brown1); R(220,140,56,118,P.paper); R(238,130,20,8,P.steel);
+  R(224,144,48,4,P.paperDark);
+  for(let i=0;i<15;i++){ R(224,152+i*7,26+(i*11)%14,1,P.paperDark); R(260,152+i*7,12,1,P.paperShade); }
+  R(222,165,52,3,P.lamp4); R(224,166,30,1,P.paperDark);
+  // phone
+  R(372,140,48,30,P.plastic1); R(374,136,44,8,P.plastic2); R(377,146,30,20,P.plastic0);
+  for(let r=0;r<3;r++)for(let q=0;q<3;q++) R(380+q*9,149+r*6,6,4,P.plastic2);
+  R(410,148,6,14,P.red1);
+  doc();
+}
+
+const VIS = {
+  scientist:{ who:'DR. ALDOUS KANE', line:'I did it. Time is a door now. Don\'t call anyone. Back to the lab!',
+    narr:'First flash. The rain didn\'t care.', crt:'CAM 03 LAB HALL\n> MOTION: 1\n> DOOR B: OPEN', time:'23:41',
+    doc:{bg:P.paper, label:'STAFF BADGE', photo:P.skinA1},
+    hots:[{x:209,y:120,w:20,h:16,title:'WRISTWATCH',text:'Cheap digital. The date reads \'40. Battery\'s dying, probably.',zoom:'watch'},
+          {x:266,y:140,w:34,h:30,title:'COAT HEM',text:'Burn marks. Lab accident, he\'d say. The stitching is very neat for a man this rumpled.',zoom:'coat'}] },
+  assassin:{ who:'???', line:'Directions to the laboratory. Every occupant must be terminated. Comply.',
+    narr:'Second flash. This one walked in like he owned the clock.', crt:'CAM 01 LOBBY\n> SIGNAL LOSS\n> ##@!%&', time:'23:47',
+    doc:null,
+    hots:[{x:226,y:62,w:46,h:16,title:'VISOR',text:'Light where eyes should be. It hums when it looks at you.',zoom:'visor'}] },
+  gent:{ who:'MR. H. WALLACE', line:'Evening, old sport. Might I borrow your telephone apparatus? I\'ve an appointment upstairs.',
+    narr:'He smelled like cedar and somebody else\'s century.', crt:'CAM 01 LOBBY\n> MOTION: 1\n> REC', time:'00:12',
+    doc:{bg:'#bfae84', label:'CALLING CARD', photo:null},
+    hots:[{x:228,y:120,w:18,h:22,title:'POCKET WATCH',text:'Gold, wound tight, engraved "1923". Nobody carries one of these anymore.',zoom:'pocketwatch'},
+          {x:208,y:24,w:82,h:30,title:'HAT',text:'A fedora, dry. It is pouring outside.',zoom:'hat'}] },
+  android:{ who:'INSP. R. HALE', line:'Routine facilities inspection. Everything appears to be in order. Is everything in order?',
+    narr:'Nice suit. Nice teeth. Too nice.', crt:'CAM 01 LOBBY\n> MOTION: 1\n> REC', time:'01:03',
+    doc:{bg:P.paper, label:'INSPECTION ORDER', photo:P.skinA1, holo:true},
+    hots:[{x:266,y:118,w:20,h:16,title:'ID BADGE',text:'Laminated, like ours. But the seal shifts colour when you tilt it.',zoom:'badge'},
+          {x:238,y:86,w:22,h:12,title:'NECK',text:'A hairline seam under the collar. Straight as a ruler.',zoom:'seam'}] },
+};
+
+function doc(){
+  const v = VIS[visitor].doc;
+  if(!v){ E(325,200,16,6,P.wood0); return; } // the assassin hands over nothing
+  R(292,146,70,52,P.night0);
+  R(290,144,70,52,v.bg);
+  if(v.photo){ R(296,150,20,26,P.paperShade); E(306,159,5,6,v.photo); R(299,168,14,8,P.paperDark); }
+  for(let i=0;i<5;i++) R(v.photo?322:298,152+i*6,(v.photo?30:52)-(i*7)%12,1,P.paperDark);
+  if(v.holo) R(340,180,6,6,(t>>4)%2?P.fut0:P.paperShade); // the only cyan: a seal that shifts as you look
+  g.fillStyle=P.red1; g.font='5px Silkscreen, monospace'; g.fillText(v.label,296,191);
+}
+
+// ---------- visitors, built from parts; flat two- and three-tone shading ----------
+function scientist(){
+  poly([[190,170],[200,112],[222,100],[276,100],[298,112],[308,170]],P.paperShade);
+  poly([[196,170],[205,114],[224,102],[250,102],[250,170]],P.paper);
+  poly([[236,102],[262,102],[256,150],[242,150]],P.suit1);
+  poly([[246,104],[252,104],[254,138],[250,144],[245,138]],P.red0);
+  // scorch at the hem: flat, dull, easy to miss
+  poly([[272,160],[280,150],[288,156],[296,150],[300,170],[270,170]],P.brown1);
+  R(282,156,3,2,P.brown0);
+  R(270,148,26,1,P.fog); // a neat seam, the only odd thing about the coat
+  // raised hand with a cheap black watch
+  poly([[204,170],[198,140],[214,118],[228,124],[214,146],[218,170]],P.paperShade);
+  E(220,124,7,6,P.skinA1); E(219,123,5,4,P.skinA2);
+  R(212,128,14,6,P.night0); R(215,129,8,4,P.plastic1); R(216,130,6,2,P.plastic2);
+  // head
+  R(240,88,18,16,P.skinA1); R(252,88,6,16,P.skinA0);
+  E(249,68,20,24,P.skinA0); E(247,69,18,23,P.skinA1); E(244,67,13,18,P.skinA2);
+  [[228,48,10,10],[236,40,12,10],[250,38,14,10],[264,44,10,12],[270,56,6,12],[226,58,6,12]].forEach(([x,y,rx,ry])=>E(x,y,rx,ry,P.steel));
+  [[232,44,6,5],[244,38,8,5],[226,54,4,5]].forEach(([x,y,rx,ry])=>E(x,y,rx,ry,P.fog));
+  E(249,52,18,6,P.steel);
+  R(234,64,12,9,P.night0); R(252,64,12,9,P.night0); R(246,67,6,2,P.night0);
+  R(236,66,8,5,P.paper); R(254,66,8,5,P.paper); R(239,67,3,3,P.night0); R(257,67,3,3,P.night0);
+  R(242,80,14,4,P.night0); R(244,80,10,1,P.paper);
+}
+function assassin(){
+  poly([[180,170],[196,108],[226,94],[272,94],[302,108],[318,170]],P.night2);
+  poly([[186,170],[200,110],[228,98],[250,98],[250,170]],P.night3);
+  R(244,100,10,70,P.night0);
+  for(let i=0;i<4;i++){ R(206,116+i*14,36,2,P.night0); R(258,116+i*14,36,2,P.night1); }
+  R(206,118,1,40,P.fut1); R(292,118,1,40,P.fut0);
+  E(214,104,16,10,P.steel); E(284,104,16,10,P.night3);
+  R(244,124,10,10,P.fut0); R(246,126,6,6,P.fut1); R(248,128,2,2,P.fut2);
+  R(238,84,22,14,P.night1);
+  E(249,58,24,28,P.night2); E(245,55,20,24,P.night3); E(241,50,12,14,P.steel);
+  R(226,64,46,10,P.night0); R(228,66,42,6,P.fut0); R(230,67,38,3,(t>>5)%2?P.fut1:P.fut2);
+  R(236,80,26,2,P.night0); for(let i=0;i<5;i++) R(238+i*5,82,2,4,P.night1);
+}
+function gent(){
+  poly([[188,170],[200,110],[226,98],[272,98],[298,110],[310,170]],P.brown1);
+  poly([[194,170],[204,112],[228,100],[249,100],[249,170]],P.brown2);
+  poly([[236,100],[262,100],[260,170],[238,170]],P.brown0);
+  poly([[240,100],[258,100],[249,122]],P.paper);
+  R(246,104,6,4,P.red0);
+  [130,140,150,160].forEach(y=>R(248,y,2,2,P.lamp3));
+  for(let i=0;i<10;i++) R(232+i*2,128+Math.round(Math.sin(i/3)*3),2,1,P.lamp4);
+  E(236,130,5,5,P.lamp3); E(235,129,3,3,P.lamp4);
+  R(240,86,18,16,P.skinB1); R(252,86,6,16,P.skinB0);
+  E(249,66,19,23,P.skinB0); E(247,67,17,22,P.skinB1); E(244,65,12,17,P.skinB2);
+  R(238,64,6,3,P.night0); R(254,64,6,3,P.night0); R(239,64,2,1,P.paper); R(255,64,2,1,P.paper);
+  R(236,60,9,2,P.night1); R(253,60,9,2,P.night1);
+  poly([[238,78],[249,74],[260,78],[256,81],[249,78],[242,81]],P.night1);
+  E(249,50,34,6,P.night1); poly([[229,49],[233,32],[249,28],[265,32],[269,49]],P.night2); poly([[233,49],[236,33],[249,30],[249,49]],P.night3);
+  R(229,44,40,5,P.night0); R(244,29,10,3,P.night1);
+}
+function android(){
+  // a plain grey 90s suit, perfectly pressed
+  poly([[188,170],[200,110],[226,98],[272,98],[298,110],[310,170]],P.suit1);
+  poly([[194,170],[204,112],[228,100],[249,100],[249,170]],P.suit2);
+  poly([[240,100],[258,100],[256,170],[242,170]],P.paper);
+  poly([[246,102],[252,102],[253,150],[249,156],[245,150]],P.suit0);
+  R(268,120,16,12,P.paper); R(270,122,6,7,P.paperShade); R(278,123,4,1,P.paperDark); R(278,126,4,1,P.paperDark);
+  R(281,129,2,2,(t>>4)%3===0?P.fut1:P.paperShade); // the badge seal, one pixel of the future
+  // head: symmetrical, neat
+  R(240,86,18,16,P.skinA1); R(252,86,6,16,P.skinA0);
+  E(249,66,18,22,P.skinA0); E(248,67,17,21,P.skinA1); E(245,65,12,17,P.skinA2);
+  E(249,48,18,8,P.brown0); R(231,48,36,6,P.brown0); R(232,46,34,2,P.brown1);
+  R(238,64,7,3,P.night0); R(253,64,7,3,P.night0); R(240,64,2,1,P.paper); R(255,64,2,1,P.paper);
+  R(237,60,9,1,P.brown0); R(252,60,9,1,P.brown0);
+  R(240,79,18,4,P.night0); R(241,80,16,2,P.paper); // too-even smile
+  R(240,92,18,1,P.skinB1); // collar seam, hard to see
+}
+const DRAW = {scientist, assassin, gent, android};
+const OX=-145, OY=42; // visitor art is authored around x≈249; this places it in the booth window
+
+function zoomArt(kind){
+  const z = document.getElementById('zc').getContext('2d');
+  const f=(x,y,w,h,col)=>{z.fillStyle=col;z.fillRect(x,y,w,h);};
+  f(0,0,32,24,P.night1);
+  if(kind==='watch'){ f(0,9,32,7,P.skinA1); f(0,6,32,12,P.night0); f(1,8,30,8,P.plastic1); digits(z,'12.03.40',3,9,P.night0); }
+  if(kind==='coat'){ f(0,0,32,24,P.paper); f(0,9,32,1,P.fog); for(let i=1;i<32;i+=4) f(i,10,2,1,P.paperShade); poly2(z,[[4,24],[10,15],[16,19],[24,13],[30,24]],P.brown1); }
+  if(kind==='visor'){ f(0,6,32,12,P.night0); f(2,8,28,8,P.fut0); f(4,10,24,4,P.fut1); f(10,11,4,1,P.fut2); f(20,11,4,1,P.fut2); }
+  if(kind==='pocketwatch'){ f(8,4,16,16,P.lamp3); f(10,6,12,12,P.lamp4); f(12,8,8,8,P.paper); f(15,9,1,4,P.night0); f(15,12,3,1,P.night0); f(14,0,4,4,P.lamp3); }
+  if(kind==='hat'){ f(2,14,28,4,P.night1); f(8,4,16,11,P.night2); f(8,11,16,2,P.night0); f(26,0,1,24,P.steel); f(29,4,1,20,P.steel); }
+  if(kind==='badge'){ f(4,2,24,20,P.paper); f(6,4,8,10,P.paperShade); f(16,6,10,1,P.paperDark); f(16,9,8,1,P.paperDark); f(20,15,6,6,P.fut0); f(21,16,3,3,P.fut1); f(22,16,1,1,P.fut2); }
+  if(kind==='seam'){ f(0,0,32,24,P.skinA1); f(0,0,32,6,P.paper); f(0,6,32,1,P.paperShade); f(0,14,32,1,P.skinB1); f(0,15,32,1,P.skinA2); }
+}
+// 3x5 pixel digits, so tiny readouts stay crisp ('.' is one pixel wide)
+const GLYPH={'0':'111101101101111','1':'010110010010111','2':'111001111100111','3':'111001111001111','4':'101101111001001'};
+function digits(z,str,x,y,col){ z.fillStyle=col; let cx=x;
+  for(const ch of str){ if(ch==='.'){ z.fillRect(cx,y+4,1,1); cx+=2; continue; }
+    const gl=GLYPH[ch]; for(let i=0;i<15;i++) if(gl[i]==='1') z.fillRect(cx+i%3,y+Math.floor(i/3),1,1); cx+=4; } }
+function poly2(z,pts,col){ const s=g; g=z; poly(pts,col); g=s; }
+
+function setVisitor(v){
+  visitor=v; const d=VIS[v];
+  document.getElementById('who').textContent=d.who;
+  document.getElementById('line').textContent=d.line;
+  document.getElementById('narr').textContent=d.narr;
+  document.getElementById('crt').textContent=d.crt;
+  document.getElementById('time').textContent=d.time;
+  document.getElementById('zoom').hidden=true;
+  const hots=document.getElementById('hots'); hots.innerHTML='';
+  d.hots.forEach(h=>{ const el=document.createElement('div'); el.className='hot'; el.tabIndex=0; el.setAttribute('role','button'); el.setAttribute('aria-label','Inspect '+h.title.toLowerCase());
+    const x=Math.max(4,h.x+OX), y=Math.max(69,h.y+OY);
+    Object.assign(el.style,{left:x+'px',top:y+'px',width:Math.min(h.w,204-x)+'px',height:Math.min(h.h,196-y)+'px'});
+    const open=()=>{ document.getElementById('ztitle').textContent=h.title; document.getElementById('ztext').textContent=h.text; zoomArt(h.zoom); document.getElementById('zoom').hidden=false; };
+    el.onclick=open; el.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } };
+    hots.appendChild(el); });
+  document.querySelectorAll('#controls button[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+}
+document.getElementById('zoom').onclick=()=>{ document.getElementById('zoom').hidden=true; };
+document.querySelectorAll('#controls button[data-v]').forEach(b=>b.onclick=()=>setVisitor(b.dataset.v));
+document.getElementById('flashBtn').onclick=()=>{ flashT=0; };
+
+// The flash: the whole frame collapses to three tones for a beat, then a stepped fade.
+const FL=[[16,17,20],[140,139,125],[238,240,232]];
+function posterize(){ const im=g.getImageData(0,0,480,270), a=im.data;
+  for(let i=0;i<a.length;i+=4){ const l=.3*a[i]+.59*a[i+1]+.11*a[i+2]; const k=l>95?2:l>45?1:0;
+    a[i]=FL[k][0]; a[i+1]=FL[k][1]; a[i+2]=FL[k][2]; }
+  g.putImageData(im,0,0); }
+
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame(){
+  if(!still) t++;
+  exterior(); boothBack();
+  g.save(); g.beginPath(); g.rect(4,69,200,127); g.clip(); g.translate(OX,OY); DRAW[visitor](); g.restore();
+  boothFront(); desk();
+  if(holdFlash || (flashT>=0 && flashT<14)) posterize();
+  if(flashT>=0){ const steps=[1,1,1,0,0,0,0,0,0,0,0,0,0,0,.5,.25,.12];
+    const a=steps[flashT]; if(a===undefined){ flashT=-1; }
+    else { if(a){ g.globalAlpha=a; R(0,0,480,270,P.flash); g.globalAlpha=1; } flashT++; } }
+  requestAnimationFrame(frame);
+}
+function fit(){ const s=document.getElementById('wrap').clientWidth/480;
+  document.getElementById('stage').style.transform=`scale(${s})`; }
+window.addEventListener('resize',fit); fit();
+setVisitor(VIS[params.get('v')] ? params.get('v') : 'scientist');
+frame();
+</script>
+</body>
+</html>

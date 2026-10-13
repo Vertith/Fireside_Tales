@@ -1,0 +1,110 @@
+{
+  "name": "Emit Time palette v3 (Noir Pixel Desk)",
+  "notes": "Ramps run dark to light. Future cyan never appears on 1990s objects. See style-guide.md section 5.",
+  "colors": {
+    "night0": "#0b0d14",
+    "night1": "#161a2a",
+    "night2": "#232a40",
+    "night3": "#39425e",
+    "steel": "#5b6684",
+    "fog": "#8d97b0",
+    "wood0": "#2a180d",
+    "wood1": "#3a2414",
+    "wood2": "#5e3a1f",
+    "wood3": "#8a5a2e",
+    "lamp3": "#c88a45",
+    "lamp4": "#f2c27a",
+    "paper": "#d9cfb4",
+    "paperShade": "#a89c80",
+    "paperDark": "#6e6552",
+    "plastic0": "#5f5848",
+    "plastic1": "#8a7f68",
+    "plastic2": "#b3a68a",
+    "skinA0": "#5a3428",
+    "skinA1": "#9a634c",
+    "skinA2": "#d29a78",
+    "skinB0": "#3a2219",
+    "skinB1": "#6b4232",
+    "skinB2": "#9c6a50",
+    "crt0": "#0f2a1c",
+    "crt1": "#2f8f5a",
+    "crt2": "#7dffb0",
+    "red0": "#5c1a22",
+    "red1": "#a8323a",
+    "fut0": "#1c6f86",
+    "fut1": "#3fe0ff",
+    "fut2": "#b8f6ff",
+    "flash": "#eef4ff",
+    "brown0": "#2e1f17",
+    "brown1": "#4f3527",
+    "brown2": "#7a5640",
+    "suit0": "#262b38",
+    "suit1": "#3c4354",
+    "suit2": "#596277"
+  },
+  "ramps": {
+    "night": [
+      "night0",
+      "night1",
+      "night2",
+      "night3",
+      "steel",
+      "fog"
+    ],
+    "wood_lamp": [
+      "wood0",
+      "wood1",
+      "wood2",
+      "wood3",
+      "lamp3",
+      "lamp4"
+    ],
+    "paper": [
+      "paper",
+      "paperShade",
+      "paperDark"
+    ],
+    "plastic": [
+      "plastic0",
+      "plastic1",
+      "plastic2"
+    ],
+    "skinA": [
+      "skinA0",
+      "skinA1",
+      "skinA2"
+    ],
+    "skinB": [
+      "skinB0",
+      "skinB1",
+      "skinB2"
+    ],
+    "cloth_brown": [
+      "brown0",
+      "brown1",
+      "brown2"
+    ],
+    "suit_grey": [
+      "suit0",
+      "suit1",
+      "suit2"
+    ],
+    "crt": [
+      "crt0",
+      "crt1",
+      "crt2"
+    ],
+    "danger": [
+      "red0",
+      "red1"
+    ],
+    "future": [
+      "fut0",
+      "fut1",
+      "fut2"
+    ],
+    "flash": [
+      "flash"
+    ]
+  }
+}

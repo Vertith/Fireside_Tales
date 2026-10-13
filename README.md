@@ -1,0 +1,19 @@
+# Emit Time
+
+A click-based story game in the spirit of *Papers, Please*, *Probably Stolen* and *No, I'm Not a Human*.
+
+It's a stormy night in the 1990s at Science Corp. You're the security guard on the front desk, and a man in a lab coat has just run in to say he's cracked time travel on the fourth floor. Now people from every era are turning up to stop it or steal it. Over 30 visitors between 10:52 PM and 6 AM, you question each one, inspect what they carry, and decide: let them through, turn them away, or shoot. Every wrong call sends you back to the first flash of lightning, but your notebook remembers what you learned, and so, it turns out, does the man upstairs.
+
+## Play
+
+- **In a browser:** open `game/index.html`, or the single-file build `game/dist/emit-time.html`. No build step or server needed.
+- **On Windows:** the V1.3 Beta installer and portable zip are distributed separately (they're too large for the repository). See [`releases/v1.3beta/README.md`](releases/v1.3beta/README.md).
+
+## What's here
+
+| Folder | Contents |
+|---|---|
+| [`game/`](game/) | The game: plain HTML, CSS and JavaScript. Its [README](game/README.md) covers the engine, content files and how to write scenes |
+| [`story/`](story/) | Story bible, story arc, visitor tells and alternate endings |
+| [`art/`](art/) | Style guide, palette and desk-scene mockups |
+| [`releases/v1.3beta/`](releases/v1.3beta/) | Release notes and EULA for the Windows build |

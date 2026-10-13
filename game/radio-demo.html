@@ -1,0 +1,154 @@
+<title>Emit Time Desk Radio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@1,500;1,600&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=VT323&display=swap">
+<link rel="stylesheet" href="css/radio.css">
+<style>
+/* Layout: one lamp-lit desk. The radio sits under the lamp, presets and the
+   shortwave log lie on the desk below it. Single dark look, like the game. */
+:root {
+  color-scheme: dark;
+  --night: #0b0e12;
+  --desk: #17120d;
+  --desk-edge: #2a2016;
+  --lamp: #e2b25f;
+  --paper: #e8e0cc;
+  --paper-ink: #2a2620;
+  --steel: #8994a1;
+  --blood: #c8453d;
+  --display: 'Bodoni Moda', Didot, Georgia, serif;
+  --type: 'Courier Prime', 'Courier New', Courier, monospace;
+  --crt-font: 'VT323', 'Courier New', monospace;
+}
+html, body { min-height: 100%; }
+body {
+  background: radial-gradient(ellipse 70% 55% at 50% 0%, rgba(226, 178, 95, .16), transparent 70%), var(--night);
+  color: var(--paper);
+  font-family: var(--type);
+  font-size: 1rem;
+  line-height: 1.5;
+  padding-inline: 16px;
+  padding-block: 28px 40px;
+}
+.wrap { max-width: 720px; margin: 0 auto; display: grid; gap: 22px; }
+header { display: grid; gap: 4px; }
+.eyebrow { font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; color: var(--steel); }
+h1 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 600; font-size: clamp(2rem, 7vw, 3rem); line-height: 1.05; text-wrap: balance; }
+header p { margin: 4px 0 0; max-width: 60ch; color: var(--steel); }
+
+.desk {
+  background: linear-gradient(var(--desk), #120e0a);
+  border-top: 2px solid var(--desk-edge);
+  padding: 24px 18px 22px;
+  display: grid;
+  gap: 22px;
+  justify-items: center;
+}
+.radio { width: min(100%, 420px); }
+.radio .radio-window { min-height: 92px; }
+.radio .radio-freq { font-size: 2.2rem; }
+
+.presets { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 560px) { .presets { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.presets button {
+  display: grid; gap: 2px; text-align: left;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid #3a2e22;
+  color: var(--paper);
+  font: inherit; font-size: .85rem;
+  cursor: pointer;
+}
+.presets button span { font-family: var(--crt-font); font-size: 1.25rem; line-height: 1; color: var(--lamp); }
+.presets button small { color: var(--steel); font-size: .75rem; }
+.presets button:hover { border-color: var(--lamp); }
+.presets button[aria-current="true"] { border-color: var(--lamp); background: rgba(226, 178, 95, .08); }
+
+.log {
+  width: 100%;
+  background: var(--paper);
+  color: var(--paper-ink);
+  padding: 12px 14px 14px;
+  transform: rotate(-.6deg);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .45);
+  display: grid; gap: 6px;
+}
+.log h2 { margin: 0; font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; }
+.letters { display: flex; flex-wrap: wrap; gap: 4px 2px; font-size: clamp(1.1rem, 4.5vw, 1.6rem); font-weight: 700; letter-spacing: .06em; min-height: 1.6em; }
+.letters i { font-style: normal; display: inline-block; min-width: .7em; text-align: center; opacity: .18; transition: opacity .25s, color .25s; }
+.letters i.done { opacity: 1; }
+.letters i.now { opacity: 1; color: var(--blood); }
+.code { font-size: .78rem; overflow-wrap: anywhere; color: #5d5547; }
+.log p { margin: 0; font-size: .8rem; color: #5d5547; }
+footer { color: var(--steel); font-size: .8rem; }
+@media (prefers-reduced-motion: reduce) { .log { transform: none; } .letters i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Science Corp front desk · 10:14 PM</span>
+    <h1>The desk radio</h1>
+    <p>Six stations, all made live in your browser. Click the dial to switch on, then keep clicking to turn through the band.</p>
+  </header>
+
+  <section class="desk" aria-label="Radio">
+    <div id="radio"></div>
+    <div class="presets" id="presets" aria-label="Stations"></div>
+    <div class="log" aria-live="off">
+      <h2>Shortwave log, 7.335</h2>
+      <div class="letters" id="letters"></div>
+      <div class="code" id="code"></div>
+      <p id="log-note">Tune to Shortwave to copy the signal down.</p>
+    </div>
+  </section>
+
+  <footer>No recordings: every note, voice and crackle is synthesised as it plays, so stations keep going while you are tuned away.</footer>
+</div>
+
+<script src="js/radio.js"></script>
+<script>
+(function () {
+  var R = EMIT.radio;
+  R.widget(document.getElementById('radio'));
+
+  var presets = document.getElementById('presets');
+  R.stations.forEach(function (s, k) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = '<span></span><strong></strong><small></small>';
+    b.querySelector('span').textContent = s.freq + (s.band ? ' ' + s.band : '');
+    b.querySelector('strong').textContent = s.name;
+    b.querySelector('small').textContent = s.blurb;
+    b.addEventListener('click', function () { if (!R.isOn()) R.on(); if (R.index() !== k) R.tune(k); });
+    presets.appendChild(b);
+  });
+
+  var letters = document.getElementById('letters'), cells = [];
+  R.morse.text.split('').forEach(function (ch) {
+    var i = document.createElement('i'); i.textContent = ch === ' ' ? ' ' : ch;
+    letters.appendChild(i); cells.push(i);
+  });
+  document.getElementById('code').textContent = R.morse.code;
+
+  var note = document.getElementById('log-note');
+  function paint(s) {
+    [].forEach.call(presets.children, function (b, k) { b.setAttribute('aria-current', String(s.on && k === s.index)); });
+    var tuned = s.on && s.station.id === 'morse';
+    note.textContent = tuned ? 'Copying. Dots and dashes, standard timing, about 16 words a minute.' : 'Tune to Shortwave to copy the signal down.';
+  }
+  R.onChange(paint); paint(R.state());
+
+  var last = -1;
+  (function frame() {
+    var k = R.morseNow();
+    if (k !== last) {
+      cells.forEach(function (c, j) {
+        c.classList.toggle('now', j === k);
+        c.classList.toggle('done', k >= 0 ? j < k : last === cells.length - 1 && k === -1 && R.state().station.id === 'morse');
+      });
+      last = k;
+    }
+    requestAnimationFrame(frame);
+  })();
+})();
+</script>

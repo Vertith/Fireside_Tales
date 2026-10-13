@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emit Time Style Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night0:#0b0d14; --night1:#161a2a; --night2:#232a40; --night3:#39425e;
+    --paper:#d9cfb4; --paper-shade:#a89c80; --lamp:#f2c27a; --lamp-mid:#c88a45;
+    --crt:#7dffb0; --crt-mid:#2f8f5a; --crt-dark:#0f2a1c; --red:#a8323a;
+  }
+  html, body { margin:0; background:var(--night0); color:var(--paper); }
+  body { min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:16px; box-sizing:border-box; font-family:'VT323', monospace; }
+  #wrap { width:100%; max-width:1440px; aspect-ratio:16/9; position:relative; }
+  #stage { position:absolute; left:0; top:0; width:480px; height:270px; transform-origin:0 0; }
+  canvas { width:480px; height:270px; image-rendering:pixelated; display:block; }
+  .ov { position:absolute; }
+  /* dialogue bubble, Papers Please transcript feel */
+  #bubble { left:300px; top:20px; width:150px; background:var(--paper); color:var(--night0); font-size:10px; line-height:9px; padding:4px 5px; border:1px solid var(--night0); box-shadow:2px 2px 0 var(--night0); }
+  #bubble b { font-family:'Silkscreen', monospace; font-size:6px; display:block; margin-bottom:2px; color:var(--red); letter-spacing:.5px; }
+  #crt { left:381px; top:124px; width:74px; height:44px; color:var(--crt); font-size:7px; line-height:6.5px; overflow:hidden; text-shadow:0 0 2px var(--crt-mid); }
+  #narr { left:12px; top:4px; font-size:9px; color:var(--lamp); font-style:italic; text-shadow:1px 1px 0 var(--night0); }
+  #actions { left:286px; top:246px; display:flex; gap:3px; }
+  #actions button { font-family:'Silkscreen', monospace; font-size:5.5px; padding:3px 4px; border:1px solid var(--night0); background:var(--paper); color:var(--night0); box-shadow:1px 1px 0 var(--night0); cursor:pointer; }
+  #actions button.shoot { background:var(--red); color:var(--paper); }
+  #actions button[disabled] { background:var(--night3); color:var(--night1); cursor:not-allowed; }
+  .hot { position:absolute; border:1px dashed transparent; cursor:zoom-in; }
+  .hot:hover, .hot:focus { border-color:var(--lamp); outline:none; }
+  #zoom { left:160px; top:186px; width:180px; background:var(--night1); border:1px solid var(--lamp); padding:5px; display:none; box-shadow:3px 3px 0 var(--night0); }
+  #zoom canvas { width:64px; height:48px; float:left; margin-right:5px; border:1px solid var(--night3); }
+  #zoom p { margin:0; font-size:9px; line-height:9px; color:var(--paper); }
+  #zoom small { font-family:'Silkscreen', monospace; font-size:5px; color:var(--lamp); display:block; margin-bottom:3px; }
+  #controls { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width:1440px; }
+  #controls button { font-family:'VT323', monospace; font-size:18px; background:var(--night2); color:var(--paper); border:1px solid var(--night3); padding:4px 12px; cursor:pointer; }
+  #controls button.on { background:var(--lamp); color:var(--night0); }
+  #note { font-size:16px; color:#8d97b0; max-width:900px; text-align:center; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="c" width="480" height="270"></canvas>
+    <div class="ov" id="narr"></div>
+    <div class="ov" id="bubble"><b id="who"></b><span id="line"></span></div>
+    <div class="ov" id="crt"></div>
+    <div id="hots"></div>
+    <div class="ov" id="zoom"><canvas id="zc" width="32" height="24"></canvas><small id="ztitle"></small><p id="ztext"></p></div>
+    <div class="ov" id="actions">
+      <button>LET THROUGH</button><button>TURN AWAY</button><button class="shoot">SHOOT</button><button disabled title="Unlocks later">DEVICE</button>
+    </div>
+  </div>
+</div>
+<div id="controls">
+  <button data-v="scientist" class="on">The scientist</button>
+  <button data-v="assassin">The assassin</button>
+  <button data-v="gent">1920s gentleman</button>
+  <button id="flashBtn">Trigger flash</button>
+</div>
+<div id="note">Style mockup at the native 480×270 canvas, scaled up with nearest-neighbour. Hover a visitor to find the dashed inspection spots, click to zoom.</div>
+
+<script>
+const P = {
+  night0:'#0b0d14', night1:'#161a2a', night2:'#232a40', night3:'#39425e', steel:'#5b6684', fog:'#8d97b0',
+  wood0:'#2a180d', wood1:'#3a2414', wood2:'#5e3a1f', wood3:'#8a5a2e', lamp3:'#c88a45', lamp4:'#f2c27a',
+  paper:'#d9cfb4', paperShade:'#a89c80', paperDark:'#6e6552',
+  plastic0:'#5f5848', plastic1:'#8a7f68', plastic2:'#b3a68a',
+  skinA0:'#5a3428', skinA1:'#9a634c', skinA2:'#d29a78',
+  skinB0:'#3a2219', skinB1:'#6b4232', skinB2:'#9c6a50',
+  crt0:'#0f2a1c', crt1:'#2f8f5a', crt2:'#7dffb0',
+  red0:'#5c1a22', red1:'#a8323a',
+  fut0:'#1c6f86', fut1:'#3fe0ff', fut2:'#b8f6ff',
+  flash:'#eef4ff',
+  brown0:'#2e1f17', brown1:'#4f3527', brown2:'#7a5640',
+};
+const c = document.getElementById('c'), g = c.getContext('2d');
+g.imageSmoothingEnabled = false;
+
+function R(x,y,w,h,col){ g.fillStyle=col; g.fillRect(x|0,y|0,w|0,h|0); }
+function E(cx,cy,rx,ry,col){ g.fillStyle=col; for(let y=-ry;y<=ry;y++){ const w=Math.round(rx*Math.sqrt(Math.max(0,1-(y*y)/(ry*ry)))); g.fillRect(cx-w,cy+y,w*2+1,1);} }
+function poly(pts,col){ // scanline fill, no anti-aliasing
+  g.fillStyle=col; let minY=Infinity,maxY=-Infinity; pts.forEach(p=>{minY=Math.min(minY,p[1]);maxY=Math.max(maxY,p[1]);});
+  for(let y=Math.floor(minY);y<=Math.ceil(maxY);y++){ const xs=[];
+    for(let i=0;i<pts.length;i++){ const [x1,y1]=pts[i],[x2,y2]=pts[(i+1)%pts.length];
+      if((y1<=y&&y2>y)||(y2<=y&&y1>y)) xs.push(x1+(y-y1)*(x2-x1)/(y2-y1)); }
+    xs.sort((a,b)=>a-b); for(let i=0;i<xs.length;i+=2) g.fillRect(Math.round(xs[i]),y,Math.round(xs[i+1])-Math.round(xs[i]),1); }
+}
+// ordered dither between two colours: d = 0..4 density
+function D(x,y,w,h,col,d,oval){ g.fillStyle=col; for(let j=0;j<h;j++) for(let i=0;i<w;i++){ const px=x+i,py=y+j;
+  if(oval){ const u=(i-w/2)/(w/2), v=(j-h/2)/(h/2); if(u*u+v*v>1) continue; }
+  const b=[[0,2],[3,1]][py&1][px&1]; if(b<d) g.fillRect(px,py,1,1);} }
+
+let t = 0, visitor = 'scientist', flashT = -1;
+const holdFlash = !!new URLSearchParams(location.search).get('flash');
+const rain = Array.from({length:70},()=>({x:Math.random()*130+22,y:Math.random()*130+22,s:2+Math.random()*2}));
+
+function room(){
+  R(0,0,480,270,P.night1);
+  // wall panels
+  for(let x=160;x<480;x+=40){ R(x,0,1,170,P.night0); }
+  R(0,166,480,4,P.night0);
+  // glass doors with rainy city
+  R(18,18,136,144,P.steel); R(20,20,132,140,P.night0);
+  R(22,22,62,136,P.night2); R(88,22,62,136,P.night2);
+  for(let i=0;i<9;i++){ const bx=24+i*14, bh=20+((i*37)%40); R(bx,158-bh-30,10,bh,P.night1);
+    for(let w=0;w<bh;w+=6) if((i+w)%3) R(bx+3,158-bh-30+w+2,2,2, (i+w)%5? P.night3 : P.lamp3); }
+  R(22,120,128,38,P.night1); D(22,112,128,8,P.night1,2);
+  R(84,20,4,140,P.steel); R(78,80,2,20,P.fog); R(90,80,2,20,P.fog);
+  // rain streaks on glass
+  rain.forEach(d=>{ d.y+=d.s*0.5; if(d.y>156){d.y=22;d.x=Math.random()*128+22;}
+    if(d.x<84||d.x>88) R(d.x,d.y,1,3,P.night3); });
+  // logo
+  g.fillStyle=P.night3; g.font='8px Silkscreen, monospace'; g.fillText('SCIENCE CORP',176,30);
+  R(176,34,82,1,P.night3);
+  // clock
+  E(440,40,10,10,P.night2); E(440,40,8,8,P.paperShade); R(440,33,1,7,P.night0); R(440,40,5,1,P.night0);
+  // venetian blind shadows across the wall from the lamp
+  for(let k=0;k<7;k++){ poly([[300+k*0,50+k*14],[480,30+k*14],[480,36+k*14],[300,56+k*14]], P.night0); }
+}
+
+function counterAndDesk(){
+  // counter top
+  R(0,166,480,14,P.wood2); R(0,166,480,2,P.wood3); R(0,178,480,2,P.wood0);
+  // desk surface
+  R(0,180,480,90,P.wood1);
+  for(let y=186;y<270;y+=9) R(0,y,480,1,P.wood0);
+  // lamp light pool, dithered falloff
+  E(70,215,95,48,P.wood2);
+  D(-50,155,240,120,P.wood2,1,true);
+  E(70,212,60,30,P.wood3); D(0,178,140,66,P.wood3,1,true);
+  E(70,210,30,15,P.lamp3);
+  // desk lamp
+  R(28,238,40,6,P.night0); R(30,236,36,3,P.night3);
+  poly([[46,236],[50,236],[66,196],[62,194]],P.night3);
+  poly([[50,180],[86,180],[78,198],[56,198]],P.night2); R(56,196,22,2,P.lamp4);
+  // clipboard visitor list
+  poly([[94,192],[154,190],[158,262],[96,264]],P.brown1);
+  poly([[98,197],[151,195],[154,258],[100,260]],P.paper);
+  R(117,188,18,6,P.steel);
+  for(let i=0;i<8;i++){ R(103,205+i*6,30+(i*13)%16,1,P.paperDark); R(141,205+i*6,8,1,P.paperShade); }
+  R(102,203+2*6,46,4,'rgba(242,194,122,.0)');
+  // phone
+  R(312,226,46,26,P.plastic1); R(314,222,42,8,P.plastic2); R(316,228,38,20,P.plastic0);
+  for(let r=0;r<3;r++)for(let q=0;q<3;q++) R(320+q*7,231+r*5,5,3,P.plastic2);
+  R(345,232,6,12,P.red1);
+  // visitor document on desk (visitor-specific colours)
+  doc();
+  // CRT monitor on the counter
+  R(370,110,96,72,P.plastic1); R(372,112,92,64,P.plastic2); R(376,118,84,54,P.night0);
+  R(379,121,78,48,P.crt0); D(379,121,78,48,P.night0,1);
+  for(let y=121;y<169;y+=2) R(379,y,78,1,'#0a1f15');
+  R(400,178,36,6,P.plastic0); R(452,170,6,3,P.crt2);
+}
+
+const VIS = {
+  scientist:{ who:'DR. ALDOUS KANE', line:'I did it. Do you understand? Time is a door now, and I hold the key. Back to the lab, no calls!',
+    narr:'First flash. The rain didn\'t care.', crt:'CAM 03 LAB HALL\n> MOTION: 1\n> 23:41\n> DOOR B: OPEN',
+    doc:{bg:P.paper, label:'STAFF BADGE'},
+    hots:[{x:212,y:120,w:22,h:22,title:'WRISTWATCH',text:'Digital face. It reads 12.03.2240. The guard\'s watch says something else.',zoom:'watch'},
+          {x:244,y:96,w:30,h:30,title:'COAT',text:'Scorched at the hem, stitched with a thread that catches the light like wire.',zoom:'coat'}] },
+  assassin:{ who:'???', line:'Directions to the laboratory. Every occupant must be terminated. Comply.',
+    narr:'Second flash. This one walked in like he owned the clock.', crt:'CAM 01 LOBBY\n> SIGNAL LOSS\n> ##@!%&\n> 23:47',
+    doc:null,
+    hots:[{x:226,y:62,w:46,h:16,title:'VISOR',text:'Light where eyes should be. It hums when it looks at you.',zoom:'visor'}] },
+  gent:{ who:'MR. H. WALLACE', line:'Good evening, old sport. Might I borrow your telephone apparatus? I\'ve an appointment upstairs.',
+    narr:'Third visitor. He smelled like cedar and somebody else\'s century.', crt:'CAM 01 LOBBY\n> MOTION: 1\n> 00:12\n> REC',
+    doc:{bg:'#c9b98f', label:'CALLING CARD'},
+    hots:[{x:228,y:118,w:18,h:22,title:'POCKET WATCH',text:'Gold, wound tight, engraved "1923". Nobody has carried one of these unironically in decades.',zoom:'pocketwatch'},
+          {x:206,y:36,w:72,h:22,title:'HAT',text:'A fedora, dry. It is pouring outside.',zoom:'hat'}] },
+};
+
+function doc(){
+  const v = VIS[visitor].doc; if(!v) { // assassin: nothing, just a scorch mark where he leaned
+    E(220,220,14,6,P.wood0); D(200,212,40,16,P.night0,1); return; }
+  poly([[190,200],[262,196],[266,246],[193,250]],P.night0);
+  poly([[188,198],[260,194],[264,244],[191,248]],v.bg);
+  R(196,206,20,24,P.paperShade); E(206,214,5,6,P.paperDark); R(199,222,14,8,P.paperDark);
+  for(let i=0;i<5;i++) R(222,206+i*6,30-(i*7)%12,1,P.paperDark);
+  g.fillStyle=P.red1; g.font='5px Silkscreen, monospace'; g.fillText(v.label,197,242);
+}
+
+// ---------- visitors, built from parts (head, hair, torso, props) ----------
+function scientist(){
+  // coat torso
+  poly([[190,170],[200,112],[222,100],[276,100],[298,112],[308,170]],P.paperShade);
+  poly([[196,170],[205,114],[224,102],[250,102],[250,170]],P.paper);
+  poly([[236,102],[262,102],[256,150],[242,150]],'#4a5a7a'); // shirt
+  poly([[246,104],[252,104],[254,138],[250,144],[245,138]],P.red0); // loosened tie
+  R(252,104,2,6,P.red1);
+  // scorch marks on the coat hem
+  D(270,140,28,24,P.night0,2); R(278,150,6,3,P.night0); R(282,152,2,1,P.lamp4); R(288,160,1,1,P.lamp3);
+  D(200,150,18,16,P.night0,1);
+  // arm raised holding wrist up
+  poly([[204,170],[198,140],[214,118],[228,124],[214,146],[218,170]],P.paperShade);
+  E(220,124,7,6,P.skinA1); E(219,123,5,4,P.skinA2);
+  R(212,128,14,6,P.night0); R(214,129,10,4,P.fut0); R(215,130,8,2,P.fut1); // too-advanced watch
+  // neck & head
+  R(240,88,18,16,P.skinA1);
+  E(249,68,20,24,P.skinA1); E(246,66,17,21,P.skinA2);
+  D(258,50,14,40,P.skinA0,2);
+  // wild hair
+  [[228,48,10,10],[236,40,12,10],[250,38,14,10],[264,44,10,12],[270,56,6,12],[226,58,6,12]].forEach(([x,y,rx,ry])=>E(x,y,rx,ry,P.fog));
+  [[232,42],[246,34],[262,38],[274,50],[222,52]].forEach(([x,y])=>R(x,y,3,3,P.paper));
+  E(249,52,18,6,P.fog);
+  // glasses + eyes, a little too wide (No, I'm Not a Human energy)
+  R(234,64,12,9,P.night0); R(252,64,12,9,P.night0); R(246,67,6,2,P.night0);
+  R(236,66,8,5,P.paper); R(254,66,8,5,P.paper); R(239,67,3,3,P.night0); R(257,67,3,3,P.night0);
+  R(240,67,1,1,P.paper);
+  // mouth mid-sentence
+  R(242,80,14,4,P.night0); R(244,80,10,1,P.paper); R(244,83,10,1,P.red0);
+  // stubble
+  D(236,78,26,10,P.skinA0,1);
+}
+function assassin(){
+  // armour torso
+  poly([[180,170],[196,108],[226,94],[272,94],[302,108],[318,170]],P.night2);
+  poly([[186,170],[200,110],[228,98],[250,98],[250,170]],P.night3);
+  R(244,100,10,70,P.night0);
+  for(let i=0;i<4;i++){ R(206,116+i*14,36,2,P.night0); R(258,116+i*14,36,2,P.night1); }
+  R(206,118,1,40,P.fut1); R(292,118,1,40,P.fut0); // glowing seams
+  E(214,104,16,10,P.steel); E(284,104,16,10,P.night3); // pauldrons
+  R(244,124,10,10,P.fut0); R(246,126,6,6,P.fut1); R(248,128,2,2,P.fut2); // core
+  // neck & helmet
+  R(238,84,22,14,P.night1);
+  E(249,58,24,28,P.night3); E(245,55,20,24,P.steel); D(258,40,18,44,P.night2,2);
+  // visor
+  R(226,64,46,10,P.night0); R(228,66,42,6,P.fut0); R(230,67,38,3,P.fut1);
+  R(240,68,6,1,P.fut2); R(256,68,6,1,P.fut2);
+  if(t%40<20) { D(222,60,54,18,P.fut0,1); }
+  R(236,80,26,2,P.night0); for(let i=0;i<5;i++) R(238+i*5,82,2,4,P.night1);
+}
+function gent(){
+  // three-piece suit
+  poly([[188,170],[200,110],[226,98],[272,98],[298,110],[310,170]],P.brown1);
+  poly([[194,170],[204,112],[228,100],[249,100],[249,170]],P.brown2);
+  poly([[236,100],[262,100],[260,170],[238,170]],P.brown0); // waistcoat
+  poly([[240,100],[258,100],[249,122]],P.paper); // collar
+  R(246,104,6,4,P.red0); // bow tie
+  [130,140,150,160].forEach(y=>R(248,y,2,2,P.lamp3));
+  // watch chain + pocket watch
+  for(let i=0;i<10;i++) R(232+i*2,128+Math.round(Math.sin(i/3)*3),2,1,P.lamp4);
+  E(236,130,5,5,P.lamp3); E(236,130,3,3,P.lamp4);
+  // neck & head
+  R(240,86,18,16,P.skinB1);
+  E(249,66,19,23,P.skinB1); E(246,65,16,20,P.skinB2); D(257,50,14,38,P.skinB0,2);
+  // eyes, mustache
+  R(238,64,6,3,P.night0); R(254,64,6,3,P.night0); R(239,64,2,1,P.paper); R(255,64,2,1,P.paper);
+  R(236,60,9,2,P.night1); R(253,60,9,2,P.night1);
+  poly([[238,78],[249,74],[260,78],[256,81],[249,78],[242,81]],P.night1);
+  R(244,83,10,1,P.skinB0);
+  // fedora
+  E(249,50,34,6,P.night1); poly([[229,49],[233,32],[249,28],[265,32],[269,49]],P.night2); R(229,44,40,5,P.night0); D(256,30,14,16,P.night1,2);
+  R(244,29,10,3,P.night1);
+}
+const DRAW = {scientist, assassin, gent};
+
+function zoomArt(kind){
+  const z = document.getElementById('zc').getContext('2d');
+  const f=(x,y,w,h,col)=>{z.fillStyle=col;z.fillRect(x,y,w,h);};
+  f(0,0,32,24,P.night1);
+  if(kind==='watch'){ f(4,8,24,10,P.night0); f(6,9,20,8,P.fut0); z.fillStyle=P.fut2; z.font='5px Silkscreen, monospace'; z.fillText('2240',8,15); f(0,10,4,6,P.skinA1); f(28,10,4,6,P.skinA1); }
+  if(kind==='coat'){ f(0,0,32,24,P.paper); for(let i=0;i<32;i+=3) f(i,11,2,1,P.fut1); f(6,16,10,6,P.night0); f(9,18,2,1,P.lamp4); }
+  if(kind==='visor'){ f(0,6,32,12,P.night0); f(2,8,28,8,P.fut0); f(4,10,24,4,P.fut1); f(10,11,4,1,P.fut2); f(20,11,4,1,P.fut2); }
+  if(kind==='pocketwatch'){ f(8,4,16,16,P.lamp3); f(10,6,12,12,P.lamp4); f(12,8,8,8,P.paper); f(15,9,1,4,P.night0); f(15,12,3,1,P.night0); f(14,0,4,4,P.lamp3); }
+  if(kind==='hat'){ f(2,14,28,4,P.night1); f(8,4,16,11,P.night2); f(8,11,16,2,P.night0); f(26,0,1,24,P.night3); f(28,4,1,20,P.night3); }
+}
+
+function setVisitor(v){
+  visitor=v; const d=VIS[v];
+  document.getElementById('who').textContent=d.who;
+  document.getElementById('line').textContent=d.line;
+  document.getElementById('narr').textContent=d.narr;
+  document.getElementById('crt').innerText=d.crt;
+  document.getElementById('zoom').style.display='none';
+  const hots=document.getElementById('hots'); hots.innerHTML='';
+  d.hots.forEach(h=>{ const el=document.createElement('div'); el.className='hot'; el.tabIndex=0;
+    Object.assign(el.style,{left:h.x+'px',top:h.y+'px',width:h.w+'px',height:h.h+'px'});
+    el.onclick=()=>{ document.getElementById('ztitle').textContent=h.title; document.getElementById('ztext').textContent=h.text; zoomArt(h.zoom); document.getElementById('zoom').style.display='block'; };
+    hots.appendChild(el); });
+  document.querySelectorAll('#controls button[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+}
+document.getElementById('zoom').onclick=()=>document.getElementById('zoom').style.display='none';
+document.querySelectorAll('#controls button[data-v]').forEach(b=>b.onclick=()=>setVisitor(b.dataset.v));
+document.getElementById('flashBtn').onclick=()=>{ flashT=0; };
+
+// The flash: the whole lobby collapses to three tones for a beat (a nod to Pope's 1-bit Obra Dinn).
+const FL=[[11,13,20],[141,151,176],[238,244,255]];
+function posterize(){ const im=g.getImageData(0,0,480,270), a=im.data;
+  for(let i=0;i<a.length;i+=4){ const l=.3*a[i]+.59*a[i+1]+.11*a[i+2]; const k=l>95?2:l>45?1:0;
+    a[i]=FL[k][0]; a[i+1]=FL[k][1]; a[i+2]=FL[k][2]; }
+  g.putImageData(im,0,0); }
+function frame(){
+  t++;
+  room(); DRAW[visitor](); counterAndDesk();
+  // the flash: stepped, not smooth, so it reads as pixel art. Silhouettes first, then white.
+  if(holdFlash || (flashT>=0 && flashT<14)) posterize();
+  if(flashT>=0){ const steps=[1,1,1,0,0,0,0,0,0,0,0,0,0,0,.5,.25,.12];
+    const a=steps[flashT]; if(a===undefined){ flashT=-1; }
+    else { if(a){ g.globalAlpha=a; R(0,0,480,270,P.flash); g.globalAlpha=1; } flashT++; } }
+  requestAnimationFrame(frame);
+}
+function fit(){ const w=document.getElementById('wrap').clientWidth; const s=w/480;
+  document.getElementById('stage').style.transform=`scale(${s})`; }
+window.addEventListener('resize',fit); fit();
+setVisitor(new URLSearchParams(location.search).get('v')||'scientist');
+frame();
+</script>
+</body>
+</html>
