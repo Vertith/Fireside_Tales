@@ -1,8 +1,8 @@
 # Emit Time
 
-A click-based story game in the spirit of *Papers, Please*, *Probably Stolen* and *No, I'm Not a Human*.
+A click-based pixel art story game.
 
-It's a stormy night in the 1990s at Science Corp. You're the security guard on the front desk, and a man in a lab coat has just run in to say he's cracked time travel on the fourth floor. Now people from every era are turning up to stop it or steal it. Over 30 visitors between 10:52 PM and 6 AM, you question each one, inspect what they carry, and decide: let them through, turn them away, or shoot. Every wrong call sends you back to the first flash of lightning, but your notebook remembers what you learned, and so, it turns out, does the man upstairs.
+It's a stormy night in 1993 at Science Corp. You're the security guard on the front desk, and a man in a lab coat has just run in to say he's cracked time travel on the fourth floor. Now people from every era are turning up to stop it, steal it, or deliver dinner. Over 30 visitors between 10:52 PM and 6 AM, you question each one, inspect what they carry, and decide: let them through, turn them away, or shoot. Every wrong call sends you back to the first flash of light, but your notebook remembers what you learned, and so, it turns out do you.
 
 ## Play
 
