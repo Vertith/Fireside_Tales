@@ -10476,7 +10476,9 @@ window.EMIT.content.visitorList = [
       }
       actions.filter(function (a) { return a.id !== 'shutdown'; }).forEach(function (a) {
         var label = a.locked ? 'Device locked' : a.stamp;
-        var b = self.stamp(label, a.id + (a.locked ? ' locked' : ''), a.locked ? a.hint : a.label);
+        // the Drawer stamp only opens the drawer; firing is the next click
+        var tip = a.locked ? a.hint : a.id === 'shoot' ? 'Open the drawer' : a.label;
+        var b = self.stamp(label, a.id + (a.locked ? ' locked' : ''), tip);
         if (a.locked) b.disabled = true;
         b.addEventListener('click', function () {
           if (a.id === 'shoot') { self.setDrawer(true); E.audio.play('drawer'); self.renderActions(actions, done); return; }
