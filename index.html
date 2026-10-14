@@ -169,51 +169,127 @@ body {
     }
   }
 
-  // ---------- static backdrop (three flicker levels of firelight) ----------
+  // ---------- static scene, built once in layers ----------
+  // sky > far ridge, fog and far pines > lit ground (three flicker levels) > mid pines and the camp > near pines
   var HORIZON = 124;
-  function pine(g, cx, base, h, w, col, rim) {
-    // trunk
-    rect(g, cx - 1, base - Math.round(h * 0.18), 3, Math.round(h * 0.18) + 1, col);
-    var top = base - h;
-    for (var y = top; y < base - Math.round(h * 0.12); y++) {
-      var t = (y - top) / (h * 0.88);
-      var tier = (t * 4) % 1;               // four jagged tiers
-      var half = Math.max(0, Math.round((w / 2) * (0.25 + 0.75 * t) * (0.55 + 0.45 * tier)));
-      rect(g, cx - half, y, half * 2 + 1, 1, col);
-      if (rim) {
-        var side = cx < FX ? 1 : -1;
-        var ex = cx + side * half;
-        var d = Math.hypot(ex - FX, (y - FY) * 1.6);
-        if (d < rim && y > top + 4 && bayer(ex, y) < 1 - d / rim) px(g, ex, y, C.wood0);
+  var clamp01 = function (v) { return v < 0 ? 0 : v > 1 ? 1 : v; };
+  function layer() { var cv = document.createElement('canvas'); cv.width = W; cv.height = H; return cv; }
+
+  // A pine built from drooping tiers of needles. Light comes from the moon (upper right) and,
+  // for trees near the clearing, warm firelight on the side facing the fire.
+  // o: { cx, base, h, w, ramp: [shadow, base, lit, moon], warm: [dim, bright] | null, rim, seed, trunk: [dark, lit] }
+  function pine(g, o) {
+    var r = rng(o.seed || 1), top = o.base - o.h;
+    var crownBot = o.base - Math.round(o.h * 0.14);
+    var n = Math.max(4, Math.round(o.h / 13));
+    var face = o.cx < FX ? 1 : -1; // which side looks at the fire
+    // trunk with bark streaks
+    var tw = Math.max(2, Math.round(o.w / 12));
+    for (var ty = crownBot - 6; ty <= o.base; ty++) for (var tx = -Math.floor(tw / 2); tx < Math.ceil(tw / 2); tx++) {
+      var lit = tx * face >= Math.floor(tw / 2) - 1;
+      var c = (r() < 0.25) ? o.trunk[0] : lit ? o.trunk[1] : o.trunk[0];
+      if (o.warm && lit) { var dd = Math.hypot(o.cx - FX, (ty - FY) * 1.6); if (dd < o.rim && bayer(o.cx + tx, ty) < 1 - dd / o.rim) c = o.warm[0]; }
+      px(g, o.cx + tx, ty, c);
+    }
+    if (tw >= 3) { rect(g, o.cx - Math.floor(tw / 2) - 1, o.base, tw + 2, 1, o.trunk[0]); }
+    // tiers, bottom first so each upper tier's fringe hangs over the one below
+    for (var i = n - 1; i >= 0; i--) {
+      var tTop = top + Math.round((crownBot - top) * (i / n) * 0.9);
+      var tBot = top + Math.round((crownBot - top) * ((i + 1) / n)) + 2;
+      var tHalf = (o.w / 2) * (0.18 + 0.82 * Math.pow((i + 1) / n, 0.9));
+      var tr = rng((o.seed || 1) * 31 + i);
+      for (var y = tTop; y <= tBot; y++) {
+        var f = (y - tTop) / Math.max(1, tBot - tTop);
+        var half = Math.round(tHalf * (0.1 + 0.9 * Math.pow(f, 0.8)));
+        if (i === 0 && y === tTop) half = 0;
+        var rowsLeft = tBot - y;
+        for (var x = -half; x <= half; x++) {
+          var ax = x + 64 + i * 2;
+          if (rowsLeft === 0 && (ax % 3 !== 1)) continue;                              // hanging needle tips
+          if (rowsLeft === 1 && Math.abs(x) > half * 0.7 && ax % 3 === 0) continue;
+          var nx = half ? x / half : 0;
+          var zone = f < 0.2 ? 0 : nx < -0.72 ? 0 : nx < 0.2 ? 1 : 2;
+          if (zone === 1 && (ax - y + 400) % 4 === 0) zone = 0;                          // needle strokes
+          else if (zone === 2 && (ax + y) % 4 === 0) zone = 1;
+          if (tr() < 0.05) zone = Math.max(0, zone - 1);
+          var col = o.ramp[zone];
+          if (f > 0.55 && x >= half - 1 && x > 0) col = o.ramp[3];                      // moonlit edge
+          if (o.warm) {
+            var fs = nx * face, d = Math.hypot(o.cx + x - FX, (y - FY) * 1.6), k = clamp01(1 - d / o.rim);
+            if (fs > 0.2 && f > 0.3) {
+              var heat = k * (0.4 + fs) + (bayer(o.cx + x, y) - 0.5) * 0.12;
+              if (heat > 0.85 && o.warm[1]) col = o.warm[1]; else if (heat > 0.5) col = o.warm[0];
+            }
+          }
+          px(g, o.cx + x, y, col);
+        }
       }
     }
   }
-  function layer() { var cv = document.createElement('canvas'); cv.width = W; cv.height = H; return cv; }
-  var RIM = 165;
+  var RIM = 175;
   var HIDE_TREE = { x: 292, base: HORIZON + 12 }; // the straitjacket figure slips behind this one
-  // Sky: gradient, stars, moon.
+
   function makeSky() {
     var cv = layer(), g = cv.getContext('2d');
-    for (var y = 0; y < HORIZON; y++) for (var x = 0; x < W; x++) px(g, x, y, (y > 70 && bayer(x, y) < (y - 70) / 70) ? C.night1 : C.night0);
-    var sr = rng(11);
-    for (var s = 0; s < 70; s++) px(g, Math.floor(sr() * W), Math.floor(sr() * 90), sr() < 0.25 ? C.fog : C.night3);
-    for (var my = -7; my <= 7; my++) for (var mx = -7; mx <= 7; mx++) {
-      if (mx * mx + my * my <= 49 && (mx + 4) * (mx + 4) + (my - 2) * (my - 2) > 36) px(g, 356 + mx, 30 + my, mx > 2 ? C.paper : C.paperShade);
+    var bandsY = [[52, 'night0', 'night1'], [100, 'night1', 'night2']];
+    for (var y = 0; y < HORIZON; y++) for (var x = 0; x < W; x++) {
+      var c = 'night0';
+      bandsY.forEach(function (bd) { var t = (y - bd[0] + 8) / 16; if (t >= 1) c = bd[2]; else if (t > 0 && bayer(x, y) < t) c = bd[2]; });
+      px(g, x, y, C[c]);
     }
+    // a faint band of stars across the sky, then brighter singles
+    var sr = rng(11);
+    for (var b = 0; b < 260; b++) {
+      var bx = sr() * W, by = 10 + bx * 0.12 + (sr() + sr() + sr() - 1.5) * 18;
+      if (by < 80) px(g, Math.floor(bx), Math.floor(by), sr() < 0.7 ? C.night2 : C.night3);
+    }
+    for (var s2 = 0; s2 < 80; s2++) {
+      var x2 = Math.floor(sr() * W), y2 = Math.floor(sr() * 92), k = sr();
+      px(g, x2, y2, k < 0.5 ? C.night3 : k < 0.85 ? C.steel : C.fog);
+      if (k > 0.97) { px(g, x2 - 1, y2, C.night3); px(g, x2 + 1, y2, C.night3); px(g, x2, y2 - 1, C.night3); px(g, x2, y2 + 1, C.night3); }
+    }
+    // moon: halo, then a waning gibbous with craters
+    var MX = 392, MY = 30;
+    for (var hy = -20; hy <= 20; hy++) for (var hx = -20; hx <= 20; hx++) {
+      var dd = Math.hypot(hx, hy);
+      if (dd > 9 && dd < 20 && bayer(MX + hx, MY + hy) < (1 - (dd - 9) / 11) * 0.5) px(g, MX + hx, MY + hy, C.night2);
+    }
+    for (var my = -8; my <= 8; my++) for (var mx = -8; mx <= 8; mx++) {
+      if (mx * mx + my * my > 64) continue;
+      var shadow = (mx + 6) * (mx + 6) + my * my < 45; // the dark limb on the left
+      var col = shadow ? (bayer(mx, my) < 0.3 ? C.night3 : C.night2) : (mx > 3 ? C.paper : C.paperShade);
+      px(g, MX + mx, MY + my, col);
+    }
+    [[2, -3], [4, 2], [1, 4], [5, -1]].forEach(function (c) { px(g, MX + c[0], MY + c[1], C.paperDark); });
+    rect(g, MX + 3, MY - 5, 2, 1, C.paperShade);
     return cv;
   }
-  // Far ridge and the far tree line, in a given colour (night1 normally, night0 against lightning).
   function makeFar(col) {
-    var cv = layer(), g = cv.getContext('2d');
+    var cv = layer(), g = cv.getContext('2d'), dark = col === C.night0;
+    // mountains with moonlit right faces
+    var prev = 0;
     for (var x = 0; x < W; x++) {
-      var hh = Math.round(10 + 6 * Math.sin(x / 37) + 4 * Math.sin(x / 13 + 1));
-      rect(g, x, HORIZON - hh, 1, hh, col);
+      var hh = Math.round(22 + 12 * Math.sin(x / 47 + 0.6) + 7 * Math.sin(x / 19 + 2) + 3 * Math.sin(x / 7));
+      var slope = hh - prev; prev = hh;
+      for (var y = HORIZON - hh; y < HORIZON; y++) {
+        var c = col;
+        if (!dark && slope < 0 && y < HORIZON - hh + 6 && bayer(x, y) < 0.6) c = C.night2;
+        px(g, x, y, c);
+      }
+    }
+    // low mist in the valley
+    if (!dark) for (var my = HORIZON - 14; my < HORIZON; my++) for (var mx = 0; mx < W; mx++) {
+      var t = (my - (HORIZON - 14)) / 14 * (0.55 + 0.25 * Math.sin(mx / 30));
+      if (bayer(mx, my) < t * 0.6) px(g, mx, my, C.night2);
     }
     var tr = rng(23);
-    for (var f = 0; f < 46; f++) { var fx = Math.floor(tr() * W); pine(g, fx, HORIZON + 2, 26 + Math.floor(tr() * 26), 12 + Math.floor(tr() * 8), col); }
+    for (var f = 0; f < 60; f++) {
+      var fx = Math.floor(tr() * W), fh = 22 + Math.floor(tr() * 26);
+      pine(g, { cx: fx, base: HORIZON + 2, h: fh, w: 11 + Math.floor(tr() * 8), seed: 100 + f,
+        ramp: dark ? [col, col, col, col] : [C.night1, C.night1, C.night1, C.night2], trunk: [col, col] });
+    }
     return cv;
   }
-  // The clearing floor, lit by the fire; three flicker levels.
   function makeGround(level) {
     var cv = layer(), g = cv.getContext('2d');
     var img = g.createImageData(W, H), d = img.data;
@@ -226,61 +302,160 @@ body {
       var t = Math.hypot(x - FX, (y - FY) * 2.7) / R + (bayer(x, y) - 0.5) * 0.1;
       var b = 0; while (b < cuts.length && t > cuts[b]) b++;
       var col = bands[b], n = r();
-      if (n < 0.05 && b > 0) col = bands[b - 1];      // grass glints
-      else if (n > 0.95 && b < 4) col = bands[b + 1];
+      if (n < 0.06 && b > 0) col = bands[b - 1];
+      else if (n > 0.93 && b < 4) col = bands[b + 1];
       var o = (y * W + x) * 4, c = P[col];
       d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
     }
     g.putImageData(img, 0, 0);
+    // grass tufts, leaves and pebbles, coloured by how much firelight reaches them
+    var gr = rng(41);
+    function lightAt(x, y) { return Math.hypot(x - FX, (y - FY) * 2.7) / R; }
+    for (var k = 0; k < 520; k++) {
+      var tx = Math.floor(gr() * W), ty = HORIZON + 2 + Math.floor(gr() * (H - HORIZON - 2)), L = lightAt(tx, ty);
+      if (L < 0.16) continue; // packed earth right by the fire
+      var kind = gr();
+      if (kind < 0.62) {
+        var blades = 2 + Math.floor(gr() * 3), tall = ty > 200 ? 4 : ty > 160 ? 3 : 2;
+        var cDark = L < 0.45 ? C.wood1 : L < 0.75 ? C.brown0 : C.night1;
+        var cTip = L < 0.45 ? C.wood3 : L < 0.75 ? C.wood1 : C.night3;
+        for (var bl = 0; bl < blades; bl++) {
+          var bx = tx + bl * 2 - blades, hgt = tall - (bl % 2) + Math.floor(gr() * 2), lean = gr() < 0.5 ? -1 : 1;
+          for (var hy = 0; hy < hgt; hy++) px(g, bx + (hy === hgt - 1 && hgt > 2 ? lean : 0), ty - hy, hy === hgt - 1 ? cTip : cDark);
+        }
+      } else if (kind < 0.85 && L < 0.7) {
+        px(g, tx, ty, gr() < 0.5 ? C.brown2 : C.wood3); if (gr() < 0.5) px(g, tx + 1, ty, C.brown1);
+      } else if (kind < 0.93) {
+        rect(g, tx, ty, 3, 2, L < 0.6 ? C.night3 : C.night2); px(g, tx + 1, ty, L < 0.6 ? C.fog : C.steel); px(g, tx, ty + 1, C.night1);
+      } else {
+        rect(g, tx, ty, 4, 1, L < 0.6 ? C.wood2 : C.night2); px(g, tx + 4, ty - 1, L < 0.6 ? C.wood2 : C.night2); // twig
+      }
+    }
     return cv;
   }
-  // Mid trees, the fire pit, the stumps and the It Walks prints.
   function makeMid() {
     var cv = layer(), g = cv.getContext('2d');
-    var tr = rng(31);
-    for (var m = 0; m < 16; m++) {
+    var tr = rng(31), placed = [];
+    for (var m = 0; m < 22 && placed.length < 15; m++) {
       var mx = Math.floor(tr() * W);
-      if (Math.abs(mx - FX) < 30) continue;
-      pine(g, mx, HORIZON + 8 + Math.floor(tr() * 6), 60 + Math.floor(tr() * 30), 22 + Math.floor(tr() * 10), C.night2, RIM * 1.1);
+      var hh = 58 + Math.floor(tr() * 32), ww = 24 + Math.floor(tr() * 12), base = HORIZON + 8 + Math.floor(tr() * 6);
+      if (Math.abs(mx - FX) < 34 || placed.some(function (p) { return Math.abs(p - mx) < 14; })) continue;
+      placed.push(mx);
+      pine(g, { cx: mx, base: base, h: hh, w: ww, seed: 300 + m, rim: RIM * 1.15,
+        ramp: [C.night1, C.night2, C.night3, C.steel], warm: [C.wood0, null], trunk: [C.night1, C.night3] });
     }
-    pine(g, HIDE_TREE.x, HIDE_TREE.base, 84, 32, C.night2, RIM * 1.1);
+    pine(g, { cx: HIDE_TREE.x, base: HIDE_TREE.base, h: 86, w: 34, seed: 299, rim: RIM * 1.15,
+      ramp: [C.night1, C.night2, C.night3, C.steel], warm: [C.wood0, null], trunk: [C.night1, C.night3] });
+    // It Walks: a trail of prints from its stump into the trees
     var prints = [[346, 160], [354, 155], [360, 149], [368, 145], [373, 140], [380, 136], [385, 132], [391, 129]];
-    prints.forEach(function (p, i) { rect(g, p[0] + (i % 2) * 2, p[1], i < 4 ? 2 : 1, 1, C.night0); px(g, p[0] + (i % 2) * 2 + 2, p[1], C.night0); });
-    for (var a = 0; a < 18; a++) {
-      var ang = a / 18 * Math.PI * 2, sx = Math.round(FX + Math.cos(ang) * 25), sy = Math.round(FY + Math.sin(ang) * 7);
-      if (Math.sin(ang) < -0.2) continue; // back stones hide behind the flames
-      rect(g, sx - 2, sy - 1, 4, 3, C.night2); rect(g, sx - 2, sy - 1, 3, 1, Math.sin(ang) > 0.3 ? C.steel : C.night3);
+    prints.forEach(function (p, i) { var x = p[0] + (i % 2) * 2; rect(g, x, p[1], i < 4 ? 2 : 1, 1, C.night0); px(g, x + (i < 4 ? 2 : 1), p[1], C.night0); if (i < 4) px(g, x + 3, p[1] - 1, C.night0); });
+    // a fallen log to sit on, front left
+    fallenLog(g, 150, 238, 46);
+    // firewood stack, front right, with a hatchet
+    woodpile(g, 300, 232);
+    // fire pit: stones, a kettle, the logs
+    for (var a = 0; a < 20; a++) {
+      var ang = a / 20 * Math.PI * 2, sx = Math.round(FX + Math.cos(ang) * 26), sy = Math.round(FY + 1 + Math.sin(ang) * 8);
+      if (Math.sin(ang) < -0.25) continue;
+      var front = Math.sin(ang) > 0.3;
+      rect(g, sx - 2, sy - 1, 5, 3, C.night2);
+      rect(g, sx - 2, sy - 1, 4, 1, front ? C.wood2 : C.night3);
+      px(g, sx - 1, sy - 1, front ? C.wood3 : C.steel);
+      rect(g, sx - 2, sy + 1, 5, 1, C.night1);
     }
-    for (var l = 0; l < 18; l++) { rect(g, FX - 13 + l, FY - 3 + Math.round(l / 6), 1, 3, l % 5 ? C.wood1 : C.wood2); rect(g, FX + 12 - l, FY - 3 + Math.round(l / 6), 1, 3, l % 4 ? C.wood2 : C.wood1); }
-    rect(g, FX - 6, FY - 1, 12, 2, C.red0);
+    kettle(g, FX - 30, FY + 6);
+    var logs = [[-15, 1, -2, -9], [14, 2, 2, -10], [-9, 4, 1, -11], [10, 4, -1, -8], [0, 5, 0, -12]];
+    logs.forEach(function (lg) {
+      var x0 = FX + lg[0], y0 = FY + lg[1], x1 = FX + lg[2], y1 = FY + lg[3], steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+      for (var s = 0; s <= steps; s++) {
+        var x = Math.round(x0 + (x1 - x0) * s / steps), y = Math.round(y0 + (y1 - y0) * s / steps);
+        var charred = s > steps * 0.55;
+        px(g, x, y, charred ? C.night0 : C.wood2); px(g, x + 1, y, charred ? C.wood0 : C.wood1); px(g, x - 1, y, charred ? C.night0 : C.wood1);
+      }
+      px(g, x0, y0, C.wood3);
+    });
     TALES.forEach(function (t) { stump(g, t.x, t.y); });
+    // little pale mushrooms at the foot of the It Walks stump
+    [[341, 173], [344, 174], [323, 174]].forEach(function (m) { rect(g, m[0] - 1, m[1] - 2, 3, 1, C.paperShade); px(g, m[0], m[1] - 1, C.paperDark); px(g, m[0], m[1] - 3, C.paperShade); });
     return cv;
   }
-  // Near framing pines and foreground grass, in front of everything that walks.
+  function fallenLog(g, x, y, len) {
+    for (var i = 0; i < len; i++) {
+      var yy = y - Math.round(i * 0.08);
+      rect(g, x + i, yy - 5, 1, 1, i % 6 === 2 ? C.wood2 : C.wood1);
+      rect(g, x + i, yy - 4, 1, 2, i % 7 === 3 ? C.wood0 : C.wood2);
+      rect(g, x + i, yy - 2, 1, 2, C.wood1);
+      px(g, x + i, yy, C.wood0);
+      if (i % 9 === 4) px(g, x + i, yy - 3, C.wood0);
+      if (i > len - 12 && i % 3 === 0) px(g, x + i, yy - 6, C.night2); // moss on the dark end
+    }
+    var ex = x - 2, ey = y - 5; // cut end, showing rings
+    rect(g, ex, ey, 3, 5, C.wood3); px(g, ex + 1, ey + 2, C.lamp3); px(g, ex + 1, ey + 1, C.wood2); px(g, ex + 1, ey + 3, C.wood2);
+    rect(g, x, y + 1, len, 1, C.night0);
+  }
+  function woodpile(g, x, y) {
+    var ends = [[0, 0], [6, 0], [12, 0], [3, -5], [9, -5], [6, -10]];
+    ends.forEach(function (e) {
+      var cx = x + e[0], cy = y + e[1];
+      rect(g, cx + 2, cy - 2, 10, 5, C.wood1); rect(g, cx + 2, cy - 2, 10, 1, C.wood2); // log body running back
+      rect(g, cx - 2, cy - 2, 5, 5, C.wood2); rect(g, cx - 1, cy - 2, 3, 5, C.wood3); rect(g, cx - 2, cy - 1, 5, 3, C.wood3);
+      px(g, cx, cy, C.lamp3); px(g, cx - 1, cy - 1, C.wood2); px(g, cx + 1, cy + 1, C.wood2);
+    });
+    rect(g, x - 3, y + 3, 26, 1, C.night0);
+    // hatchet leaning on the stack
+    for (var i = 0; i < 10; i++) px(g, x + 21 - Math.round(i * 0.3), y + 2 - i, C.wood3);
+    rect(g, x + 17, y - 10, 4, 3, C.steel); px(g, x + 17, y - 10, C.fog); px(g, x + 16, y - 9, C.fog);
+  }
+  function kettle(g, x, y) {
+    rect(g, x - 3, y - 4, 7, 4, C.night3); rect(g, x - 2, y - 5, 5, 1, C.night3);
+    rect(g, x + 1, y - 4, 2, 3, C.steel); px(g, x + 2, y - 4, C.fog);
+    rect(g, x - 5, y - 4, 2, 1, C.night3); px(g, x - 6, y - 5, C.night3); // spout
+    px(g, x - 2, y - 7, C.steel); px(g, x - 1, y - 8, C.steel); px(g, x, y - 8, C.steel); px(g, x + 1, y - 8, C.steel); px(g, x + 2, y - 7, C.steel);
+    rect(g, x - 3, y, 7, 1, C.night0);
+  }
   function makeNear() {
     var cv = layer(), g = cv.getContext('2d');
-    pine(g, 22, 282, 250, 90, C.night0, RIM);
-    pine(g, 64, 252, 170, 52, C.night0, RIM);
-    pine(g, 460, 282, 250, 90, C.night0, RIM);
-    pine(g, 418, 248, 160, 48, C.night0, RIM);
+    var near = { ramp: [C.night0, C.night0, C.night1, C.night2], warm: [C.wood0, C.wood1], rim: RIM * 1.35, trunk: [C.night0, C.night1] };
+    [[22, 284, 252, 92, 1], [64, 254, 172, 54, 2], [460, 284, 252, 92, 3], [418, 250, 162, 50, 4]].forEach(function (t) {
+      pine(g, { cx: t[0], base: t[1], h: t[2], w: t[3], seed: 900 + t[4], ramp: near.ramp, warm: near.warm, rim: near.rim, trunk: near.trunk });
+    });
+    // foreground ferns and grass, black against the light
     var gr = rng(5);
-    for (var gx = 0; gx < W; gx++) { var gh = 2 + Math.floor(gr() * 5); if (gr() < 0.6) rect(g, gx, H - gh, 1, gh, C.night0); }
+    for (var gx = 0; gx < W; gx++) {
+      var gh = 2 + Math.floor(gr() * 6);
+      if (gr() < 0.65) rect(g, gx, H - gh, 1, gh, C.night0);
+      if (gr() < 0.08) { for (var f = 0; f < 8; f++) { px(g, gx + f, H - 6 - Math.round(f * 0.6), C.night0); if (f % 2) px(g, gx + f, H - 5 - Math.round(f * 0.6), C.night0); } }
+    }
     return cv;
   }
   function stump(g, cx, top) {
-    var lit = cx < FX ? 1 : cx > FX ? -1 : 0;
-    for (var i = -10; i < 10; i++) {
-      var c = C.wood1;
-      if ((lit === 1 && i > 4) || (lit === -1 && i < -5) || (lit === 0 && Math.abs(i) > 7)) c = C.wood2;
-      if ((lit === 1 && i < -6) || (lit === -1 && i > 6)) c = C.wood0;
-      rect(g, cx + i, top, 1, 8 + (Math.abs(i) < 9 ? 1 : 0), c);
-      if (i % 4 === 1) rect(g, cx + i, top + 2, 1, 5, C.wood0);
+    var face = cx < FX ? 1 : cx > FX ? -1 : 0, r = rng(cx * 7 + top);
+    // bark body with grooves; the side facing the fire is lit
+    for (var i = -10; i <= 10; i++) {
+      var nx = i / 10, side = face ? nx * face : -Math.abs(nx);
+      var c = side > 0.45 ? C.wood2 : side < -0.6 ? C.wood0 : C.wood1;
+      if (face === 0) c = Math.abs(nx) < 0.5 ? C.wood2 : C.wood1;
+      var hgt = 9 + (Math.abs(i) >= 9 ? 1 : 0);
+      for (var y = 0; y < hgt; y++) {
+        var cc = c;
+        if ((i + 20) % 4 === 1 && y > 0) cc = C.wood0;                      // grooves
+        else if (r() < 0.08) cc = C.brown1;
+        px(g, cx + i, top + y, cc);
+      }
     }
-    var widths = [12, 18, 20, 20, 18];
-    widths.forEach(function (w, j) { rect(g, cx - w / 2, top - 3 + j, w, 1, j === 0 ? C.wood3 : C.wood3); });
-    rect(g, cx - 7, top - 1, 14, 1, C.wood2); rect(g, cx - 3, top, 6, 1, C.wood2);
-    rect(g, cx - 1, top - 1, 2, 1, C.lamp3);
-    rect(g, cx - 11, top + 9, 22, 1, C.night0); // contact shadow
+    // roots flaring at the base
+    rect(g, cx - 12, top + 8, 3, 2, C.wood1); rect(g, cx + 10, top + 8, 3, 2, C.wood0); rect(g, cx - 4, top + 9, 3, 1, C.wood1);
+    // top: rings, lit by the fire
+    for (var ty = -4; ty <= 1; ty++) for (var tx = -10; tx <= 10; tx++) {
+      var e = (tx * tx) / 100 + (ty + 1.5) * (ty + 1.5) / 7;
+      if (e > 1) continue;
+      var ring = Math.floor(Math.sqrt(e) * 4.5);
+      var col = ring >= 4 ? C.wood2 : ring % 2 ? C.wood3 : C.lamp3;
+      if (ring === 0) col = C.wood3;
+      px(g, cx + tx, top + ty, col);
+    }
+    px(g, cx + 3, top - 2, C.wood0); px(g, cx + 4, top - 1, C.wood0); // a crack
+    rect(g, cx - 11, top + 10, 24, 1, C.night0);
   }
 
   // ---------- props ----------
@@ -367,7 +542,8 @@ body {
   g.imageSmoothingEnabled = false;
   var SKY = makeSky(), FAR = makeFar(C.night1), FAR_DARK = makeFar(C.night0);
   var GROUND = [0, 1, 2].map(makeGround), MID = makeMid(), NEAR = makeNear();
-  var wind = { level: 0, target: 0, until: 0 };
+  var wind = { level: 0, target: 0, until: 0 }, fireLife = 0;
+  var COALS = []; (function () { var cr = rng(77); for (var k = 0; k < 40; k++) { var a = cr() * Math.PI * 2, d = Math.sqrt(cr()); COALS.push([Math.round(FX + Math.cos(a) * d * 15), Math.round(FY + 1 + Math.sin(a) * d * 4), cr() * 6]); } })();
   var level = 1, hover = null, tick = 0, embers = [], smoke = [];
   var tw = rng(99), twinkles = [];
   for (var i = 0; i < 6; i++) twinkles.push([Math.floor(tw() * 300) + 90, Math.floor(tw() * 60) + 4]);
@@ -389,6 +565,7 @@ body {
     for (var y = 0; y < FH; y++) for (var x = 0; x < FW; x++) {
       var v = heat[y * FW + x]; if (v) px(g, FX - FW / 2 + x, FY - FH + y, FIRE_COL[v]);
     }
+    COALS.forEach(function (c) { var v = Math.sin(tick * 0.35 + c[2]) + Math.sin(tick * 0.13 + c[2] * 3); px(g, c[0], c[1], v > 1 ? C.lamp4 : v > 0 ? C.lamp3 : v > -1 ? C.red1 : C.red0); });
     if (tick % 3 === 0) for (var e = 0; e < 4; e++) px(g, FX - 7 + Math.floor(Math.random() * 14), FY - 1 + Math.floor(Math.random() * 2), Math.random() < 0.5 ? C.lamp3 : C.red1);
     smoke.forEach(function (s) { px(g, Math.round(s.x), Math.round(s.y), s.y < FY - 50 ? C.night1 : C.night2); });
     embers.forEach(function (p) { px(g, Math.round(p.x), Math.round(p.y), p.life > 14 ? C.lamp4 : C.red1); });
@@ -644,6 +821,33 @@ body {
     for (var k = 0; k < n; k++) { var w = Math.random() * 2 - 1; if (brown) { b = (b + 0.02 * w) / 1.02; ch[k] = b * 3.5; } else ch[k] = w; }
     return buf;
   }
+  var fire = {};
+  // a looping noise source through one filter into its own gain on the ambience bus
+  function loopNoise(buf, type, freq, vol) {
+    var src = actx.createBufferSource(); src.buffer = buf; src.loop = true;
+    var f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    var gn = actx.createGain(); gn.gain.value = vol;
+    src.connect(f); f.connect(gn); gn.connect(amb); src.start(0, Math.random() * buf.duration);
+    return { src: src, filter: f, gain: gn, base: vol };
+  }
+  // stereo bed of short, soft grains: mostly tiny ticks, sometimes a little cluster, rarely a louder snap
+  function crackleBuffer(sec, rate) {
+    var sr = actx.sampleRate, n = Math.floor(sr * sec), buf = actx.createBuffer(2, n, sr);
+    for (var c = 0; c < 2; c++) {
+      var ch = buf.getChannelData(c), t = 0;
+      var grain = function (at, amp, len) {
+        for (var k = 0; k < len && at + k < n; k++) ch[at + k] += (Math.random() * 2 - 1) * amp * Math.exp(-k / (len * 0.25));
+      };
+      while (t < n) {
+        t += Math.floor(-Math.log(1 - Math.random()) / rate * sr);
+        var amp = 0.05 + 0.22 * Math.pow(Math.random(), 4), len = Math.floor(sr * (0.0008 + Math.random() * 0.003));
+        if (Math.random() < 0.02) { amp = 0.4; len = Math.floor(sr * 0.006); }
+        grain(t, amp, len);
+        if (Math.random() < 0.22) for (var q = 0, m = 2 + Math.floor(Math.random() * 4); q < m; q++) grain(t + Math.floor(Math.random() * sr * 0.04), amp * 0.5, len);
+      }
+    }
+    return buf;
+  }
   function startSound() {
     if (!actx) {
       var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
@@ -658,20 +862,22 @@ body {
       var vlp = actx.createBiquadFilter(); vlp.type = 'lowpass'; vlp.frequency.value = 2400;
       verb = actx.createGain(); verb.gain.value = 1;
       verb.connect(conv); conv.connect(vlp); vlp.connect(master);
-      // fire bed: a low brown-noise roar
-      var src = actx.createBufferSource(); src.buffer = noiseBuffer(2, true); src.loop = true;
-      var lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
-      var rg = actx.createGain(); rg.gain.value = 0.3;
-      src.connect(lp); lp.connect(rg); rg.connect(amb); src.start();
-      // wind bed: band-passed noise that follows the gusts
-      var wsrc = actx.createBufferSource(); wsrc.buffer = noiseBuffer(4, false); wsrc.loop = true;
-      windFilter = actx.createBiquadFilter(); windFilter.type = 'bandpass'; windFilter.frequency.value = 450; windFilter.Q.value = 0.8;
-      windGain = actx.createGain(); windGain.gain.value = 0.03;
-      wsrc.connect(windFilter); windFilter.connect(windGain); windGain.connect(amb); wsrc.start();
+      // fire: a soft roar, an airy hiss and a dense bed of tiny crackles (no single loud pops)
+      fire.roar = loopNoise(noiseBuffer(3, true), 'lowpass', 320, 0.2);
+      fire.hiss = loopNoise(noiseBuffer(3, false), 'highpass', 3200, 0.008);
+      var lpH = actx.createBiquadFilter(); lpH.type = 'lowpass'; lpH.frequency.value = 8000; // tame the hiss
+      fire.hiss.filter.disconnect(); fire.hiss.filter.connect(lpH); lpH.connect(fire.hiss.gain);
+      fire.tick = loopNoise(crackleBuffer(7, 22), 'bandpass', 2600, 0.5); fire.tick.filter.Q.value = 0.6;
+      fire.knock = loopNoise(crackleBuffer(5.3, 4), 'bandpass', 900, 0.35); fire.knock.filter.Q.value = 0.8;
+      // wind bed: low, soft, follows the gusts
+      var wsrc = actx.createBufferSource(); wsrc.buffer = noiseBuffer(4, true); wsrc.loop = true;
+      windFilter = actx.createBiquadFilter(); windFilter.type = 'lowpass'; windFilter.frequency.value = 380; windFilter.Q.value = 0.5;
+      var wbp = actx.createBiquadFilter(); wbp.type = 'highpass'; wbp.frequency.value = 120;
+      windGain = actx.createGain(); windGain.gain.value = 0.01;
+      wsrc.connect(wbp); wbp.connect(windFilter); windFilter.connect(windGain); windGain.connect(amb); wsrc.start();
     }
     actx.resume();
     if (musicNext < actx.currentTime) musicNext = actx.currentTime + 0.5;
-    (function loop() { crackle(0.2 + Math.random() * 0.35 + wind.level * 0.2); crackleTimer = setTimeout(loop, 60 + Math.random() * 380); })();
   }
   function out(pan, wet, dry) {
     var gIn = actx.createGain(), p = actx.createStereoPanner ? actx.createStereoPanner() : null;
@@ -691,7 +897,7 @@ body {
   }
   function crackle(vol) {
     if (!soundOn || !actx) return;
-    burst(amb, actx.currentTime, 0.02 + Math.random() * 0.02, 'highpass', 1200 + Math.random() * 2500, vol);
+    burst(amb, actx.currentTime, 0.05, 'bandpass', 1400, vol * 0.25);
   }
   function thunder() {
     if (!soundOn || !actx) return;
@@ -701,6 +907,12 @@ body {
     var lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 220;
     var gn = actx.createGain(); gn.gain.value = 0.9;
     s.connect(lp); lp.connect(gn); gn.connect(out(0.4, 0.4)); s.start();
+  }
+  // a log settling in the fire: a soft low knock and a brief sizzle
+  function settle() {
+    var t = actx.currentTime;
+    burst(amb, t, 0.3, 'lowpass', 140, 0.14, 0.01);
+    burst(amb, t + 0.05, 0.9, 'bandpass', 4200, 0.012, 0.3);
   }
   // one footfall: a soft thump plus a little leaf crunch
   function footstep(t, pan, vol, wet, heavy) {
@@ -805,13 +1017,20 @@ body {
     if (!soundOn || !actx || actx.state !== 'running') return;
     if (actx.currentTime > musicNext - 1) { scheduleMusic(Math.max(musicNext, actx.currentTime + 0.1)); musicNext = Math.max(musicNext, actx.currentTime + 0.1) + LOOP; }
     if (!ev && Math.random() < 1 / 70) distantFootsteps();
+    if (Math.random() < 1 / 40) settle();
     if (Math.random() < 1 / 420) { var t = actx.currentTime + 0.2; childCall(t); if (Math.random() < 0.4) childCall(t + 3.5); }
   }, 1000);
   setInterval(function () { // ease the wind toward its target and let the wind bed follow
     wind.level += (wind.target - wind.level) * 0.06;
     if (actx && soundOn) {
-      windGain.gain.setTargetAtTime(0.03 + wind.level * 0.22, actx.currentTime, 0.3);
-      windFilter.frequency.setTargetAtTime(420 + wind.level * 700, actx.currentTime, 0.4);
+      windGain.gain.setTargetAtTime(0.01 + wind.level * 0.05, actx.currentTime, 0.5);
+      windFilter.frequency.setTargetAtTime(380 + wind.level * 320, actx.currentTime, 0.6);
+      // the fire breathes: slow random swells, a little livelier when the wind feeds it
+      fireLife += (Math.random() - 0.5) * 0.12; fireLife = Math.max(-1, Math.min(1, fireLife * 0.98));
+      var lift = 1 + fireLife * 0.25 + wind.level * 0.3;
+      fire.roar.gain.gain.setTargetAtTime(fire.roar.base * lift, actx.currentTime, 0.3);
+      fire.tick.gain.gain.setTargetAtTime(fire.tick.base * (0.8 + fireLife * 0.3 + wind.level * 0.4), actx.currentTime, 0.2);
+      fire.hiss.gain.gain.setTargetAtTime(fire.hiss.base * lift, actx.currentTime, 0.4);
     }
   }, 100);
   window.FIRESIDE.sound = { child: function () { if (actx) childCall(actx.currentTime + 0.1); }, steps: function () { if (actx) distantFootsteps(); }, gust: function () { wind.target = 1; wind.until = Date.now() + 7000; } };
