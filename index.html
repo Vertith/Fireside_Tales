@@ -693,6 +693,7 @@ body {
     else {
       g.drawImage(SKY, 0, 0);
       twinkles.forEach(function (s, k) { if ((tick + k * 7) % 40 < 3) px(g, s[0], s[1], C.paperShade); });
+      if (ev && ev.name === 'star') drawStar(ev);
       g.drawImage(FAR, 0, 0);
     }
     g.drawImage(GROUND[level], 0, 0);
@@ -721,7 +722,10 @@ body {
       if (t.id === 'lab') bubbles.forEach(function (b) { px(g, o[0] + b.x, o[1] + Math.round(b.y), C.crt2); });
     });
     if (ev && ev.name === 'deer') drawDeerEvent(ev);
+    if (ev && ev.name === 'hanged') drawHanged(ev);
+    if (ev && ev.name === 'ghost') drawGhost(ev);
     sway(NEAR, 1.6, function (y) { return Math.max(0, (236 - y) / 210); });
+    if (ev && ev.name === 'ghost') drawGhostHand(ev);
     if (ev && ev.name === 'eyes') drawEyes(ev);
   }
   // Gusts bend the treetops: each row of a tree layer shifts by a whole pixel or two.
@@ -756,13 +760,18 @@ body {
   // ---------- things in the woods: one random event at a time ----------
   var ev = null, lastEvent = null, nextAt = 60;
   try { lastEvent = sessionStorage.getItem('fireside-last-event'); } catch (err) {}
-  var EVENTS = ['lightning', 'walker', 'deer', 'eyes'];
+  var EVENTS = ['lightning', 'walker', 'deer', 'eyes', 'ghost', 'help', 'star', 'hanged'];
+  var AUDIO_ONLY = { help: true };
   function startEvent(name) {
     ev = { name: name, t: 0 };
     if (name === 'walker') { ev.x = 36; }
     if (name === 'deer') { ev.phase = 0; ev.x = 495; ev.y = 238; }
     if (name === 'eyes') { var spot = EYE_SPOTS[Math.floor(Math.random() * EYE_SPOTS.length)]; ev.x = spot[0]; ev.y = spot[1]; }
     if (name === 'lightning') setTimeout(thunder, 900);
+    if (name === 'ghost') laughSoon = true;
+    if (name === 'help') helpMe();
+    if (name === 'star') { ev.x = 150 + Math.random() * 40; ev.y = 8 + Math.random() * 14; ev.dx = -(4 + Math.random() * 2); ev.dy = 1.6 + Math.random(); }
+    if (name === 'hanged') creak();
     lastEvent = name;
     try { sessionStorage.setItem('fireside-last-event', name); } catch (err) {}
   }
@@ -770,7 +779,8 @@ body {
   function stepEvent() {
     if (!ev) {
       if (tick >= nextAt) {
-        var pool = EVENTS.filter(function (e) { return e !== lastEvent; });
+        // never the same twice in a row; sound-only events only when the sound is on
+        var pool = EVENTS.filter(function (e) { return e !== lastEvent && (!AUDIO_ONLY[e] || soundOn); });
         startEvent(pool[Math.floor(Math.random() * pool.length)]);
       }
       return;
@@ -780,6 +790,78 @@ body {
     else if (ev.name === 'walker') { ev.x += 0.55; if (ev.t % 6 === 0) shuffle(ev.x); if (ev.x >= HIDE_TREE.x) endEvent(); }
     else if (ev.name === 'eyes') { if (ev.t === 8) breath(ev.x); if (ev.t > 70) endEvent(); }
     else if (ev.name === 'deer') stepDeer(ev);
+    else if (ev.name === 'ghost') { if (ev.t === 30 && laughSoon) { laughSoon = false; childLaugh(); } if (ev.t > GHOST_TICKS) endEvent(); }
+    else if (ev.name === 'help' && ev.t > 40) endEvent();
+    else if (ev.name === 'star') { ev.x += ev.dx; ev.y += ev.dy; if (ev.t > 14) endEvent(); }
+    else if (ev.name === 'hanged' && ev.t > HANG_END + 8) endEvent();
+  }
+  var laughSoon = false;
+
+  // 5. A ghost girl leans out from behind the near oak at the bottom left, then fades.
+  var GHOST_TICKS = 96;
+  var GHOST_FOOT = 262;
+  var OAK_EDGE = (function () { // right edge of the big oak's trunk (bottom left), widest point where she stands
+    var d = NEAR.getContext('2d').getImageData(0, 0, W, H).data, edge = 0;
+    for (var y = GHOST_FOOT - 30; y < GHOST_FOOT; y++) {
+      var x = 0;
+      while (x < 80 && d[(y * W + x) * 4 + 3] === 0) x++;
+      while (x < 80 && d[(y * W + x) * 4 + 3] !== 0) x++;
+      edge = Math.max(edge, x - 1);
+    }
+    return edge;
+  })();
+  function ghostAlpha(t) { return t < 28 ? t / 28 : t > GHOST_TICKS - 28 ? Math.max(0, (GHOST_TICKS - t) / 28) : 1; }
+  function drawGhost(e) {
+    var a = ghostAlpha(e.t), lean = e.t > 30 && e.t < GHOST_TICKS - 20 ? 2 : 0;
+    var x0 = OAK_EDGE - 5, foot = GHOST_FOOT, top = foot - 29;
+    function gp(x, y, c) { if (bayer(x, y) < a) px(g, x, y, c); }
+    // dress, darker on the side away from the fire
+    for (var y = top + 8; y < top + 23; y++) {
+      var half = 2 + Math.round((y - top - 8) * 0.22);
+      for (var x = -half; x <= half; x++) gp(x0 + 5 + x, y, x < -1 ? C.steel : (y - top) % 5 === 0 && x > 0 ? C.paperShade : C.fog);
+    }
+    // thin legs, bare feet
+    for (var ly = top + 23; ly < foot; ly++) { gp(x0 + 4, ly, C.fog); gp(x0 + 6, ly, C.fog); }
+    gp(x0 + 7, foot - 1, C.fog);
+    // head: long dark hair, pale face, black eyes; she leans out a pixel to look
+    var hx = x0 + lean;
+    for (var hy = 0; hy < 13; hy++) for (var hxx = 1; hxx <= 9; hxx++) {
+      var inHead = hy < 8 && Math.abs(hxx - 5) <= (hy === 0 ? 2 : 4);
+      var strand = hy >= 6 && (hxx === 1 || hxx === 2 || hxx === 8 || hxx === 9) && hy < 13 - (hxx % 2);
+      if (inHead || strand) gp(hx + hxx, top + hy - 1, C.night0);
+    }
+    for (var fy = 2; fy < 8; fy++) for (var fx = 3; fx <= 7; fx++) gp(hx + fx, top + fy - 1, fy === 7 && (fx === 3 || fx === 7) ? C.night0 : C.paper);
+    gp(hx + 4, top + 3, C.night0); gp(hx + 6, top + 3, C.night0);       // eyes
+    gp(hx + 4, top + 4, C.steel); gp(hx + 6, top + 4, C.steel);         // hollows under them
+    gp(hx + 5, top + 6, C.paperDark);                                    // mouth
+  }
+  function drawGhostHand(e) { // her fingers curl round the front of the trunk
+    var a = ghostAlpha(e.t), y = GHOST_FOOT - 18;
+    [[0, 0], [0, 2], [-1, 1], [-1, 3]].forEach(function (p) { if (bayer(OAK_EDGE + p[0], y + p[1]) < a) px(g, OAK_EDGE + p[0], y + p[1], C.paper); });
+  }
+
+  // 6. A shooting star, small and quick, over the left side.
+  function drawStar(e) {
+    var len = 7, n = Math.hypot(e.dx, e.dy);
+    for (var i = len; i >= 0; i--) {
+      var x = Math.round(e.x - e.dx / n * i * 1.2), y = Math.round(e.y - e.dy / n * i * 1.2);
+      px(g, x, y, i === 0 ? C.flash : i < 2 ? C.paper : i < 4 ? C.fog : i < 6 ? C.steel : C.night3);
+    }
+  }
+
+  // 7. A body hangs from the oak nearest the fire, for under two seconds, with a creak.
+  var HANG = { x: 196, limb: 104, tree: 206 }, HANG_START = 4, HANG_END = 24;
+  function drawHanged(e) {
+    if (e.t < HANG_START || e.t > HANG_END) return;
+    var sw = Math.round(Math.sin(e.t * 0.35) * 0.8), x = HANG.x + sw, y = HANG.limb;
+    for (var lx = HANG.x; lx <= HANG.tree - 3; lx++) px(g, lx, y - 1, C.night1);   // the limb it hangs from
+    for (var ry = y; ry < y + 9; ry++) px(g, HANG.x + Math.round(sw * (ry - y) / 9), ry, C.paperDark); // rope
+    var hy = y + 9;
+    rect(g, x - 1, hy, 3, 3, C.night0); px(g, x + 1, hy + 1, C.wood0); px(g, x - 2, hy + 1, C.night0); // head, lolling
+    rect(g, x - 2, hy + 3, 4, 8, C.night0); rect(g, x + 1, hy + 3, 1, 8, C.night1);           // torso
+    rect(g, x - 3, hy + 3, 1, 7, C.night0); rect(g, x + 2, hy + 3, 1, 7, C.night1);           // arms hanging
+    rect(g, x - 1, hy + 11, 1, 6, C.night0); rect(g, x + 1, hy + 11, 1, 6, C.night0);         // legs
+    px(g, x - 1, hy + 17, C.night0); px(g, x + 1, hy + 17, C.night0);                          // feet, pointing down
   }
 
   // 1. Lightning shows the Science Co building behind the trees.
@@ -853,18 +935,17 @@ body {
     else if (e.phase === 1) { e.k += 0.008; e.x = e.sx + (372 - e.sx) * e.k; e.y = e.sy + (178 - e.sy) * e.k; if (e.k >= 1) { e.phase = 2; e.hold = 0; } }
     else if (e.phase === 2) { if (++e.hold > 14) { e.phase = 3; e.hold = 0; } }
     else if (e.phase === 3) { if (++e.hold > 24) { e.phase = 4; e.hold = 0; } }
-    else if (e.phase === 4) { if (++e.hold > MORPH_TICKS + 6) { e.phase = 5; e.stride = 0; e.st = 0; e.from = e.x; } }
-    else if (e.phase === 5) { // three long strides, the last one behind the big pine
+    else if (e.phase === 4) { if (++e.hold > MORPH_TICKS + 6) { e.phase = 5; e.st = 0; e.from = e.x; } }
+    else if (e.phase === 5) { // three long strides in one flowing run, the last one behind the big pine
       e.st++;
-      var k = Math.min(1, e.st / STRIDE_TICKS);
-      e.x = e.from + STRIDE * ease(k);
-      if (e.st === STRIDE_TICKS) runStep(e.x);
-      if (e.st >= STRIDE_TICKS + STRIDE_REST) {
-        if (++e.stride >= 3) endEvent(); else { e.st = 0; e.from = e.x; }
-      }
+      var k = Math.min(3, e.st / STRIDE_TICKS);
+      // speed swells and eases inside each stride but never stops
+      e.x = e.from + STRIDE * (k - Math.sin(k * 2 * Math.PI) / (2 * Math.PI) * 0.5);
+      if (e.st % STRIDE_TICKS === Math.round(STRIDE_TICKS / 2)) runStep(e.x);
+      if (k >= 3) endEvent();
     }
   }
-  var MORPH_TICKS = 34, STRIDE = 23, STRIDE_TICKS = 6, STRIDE_REST = 4;
+  var MORPH_TICKS = 34, STRIDE = 24, STRIDE_TICKS = 10;
   function ease(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
   function drawDeerEvent(e) {
     var p = e.phase, morph = 0, look = 0, gait = 'still';
@@ -872,12 +953,14 @@ body {
     if (p === 3) look = Math.min(1, e.hold / 6);
     if (p === 4) { look = 1; morph = ease(Math.min(1, e.hold / MORPH_TICKS)); }
     var t = e.t;
-    if (p === 5) { // legs spread mid-stride, together when planted; lead leg alternates each stride
+    var bob = 0;
+    if (p === 5) { // legs swing through continuously, one full swing per stride, with a slight rise and fall
       morph = 1; look = 0; gait = 'run';
-      var k = Math.min(1, e.st / STRIDE_TICKS);
-      t = (e.stride % 2 ? Math.PI : 0) / 0.9 + (e.st < STRIDE_TICKS ? (Math.PI / 2) / 0.9 * Math.sin(k * Math.PI) : 0);
+      var k = e.st / STRIDE_TICKS;
+      t = (k * Math.PI) / 0.9;
+      bob = -Math.round(Math.abs(Math.sin(k * Math.PI)) * 1.5);
     }
-    drawBeast(Math.round(e.x), Math.round(e.y), p === 0 ? -1 : 1, morph, look, gait, t);
+    drawBeast(Math.round(e.x), Math.round(e.y) + bob, p === 0 ? -1 : 1, morph, look, gait, t);
   }
 
   // One jointed body that bends from a deer (m = 0) into the thing (m = 1).
@@ -1209,6 +1292,65 @@ body {
     var gn = actx.createGain(); gn.gain.setValueAtTime(0, t + 0.2); gn.gain.linearRampToValueAtTime(0.22, t + 0.45); gn.gain.linearRampToValueAtTime(0, t + 1.5);
     osc.connect(lp); lp.connect(gn); gn.connect(o); osc.start(t + 0.2); fm.start(t + 0.2); osc.stop(t + 1.6); fm.stop(t + 1.6);
   }
+  // A small formant voice: a buzz plus breath, shaped by two vowel filters, segment by segment.
+  // segs: [duration, F1, F2, loudness, breathiness, pitch at the end of the segment]
+  function voice(t, pan, wet, vol, f0, segs) {
+    var o = out(pan, wet, 1 - wet * 0.7), lpf = actx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 3000; lpf.connect(o);
+    var osc = actx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(f0, t);
+    var vib = actx.createOscillator(), vibG = actx.createGain(); vib.frequency.value = 5; vibG.gain.value = f0 * 0.015; vib.connect(vibG); vibG.connect(osc.frequency);
+    var nz = actx.createBufferSource(); nz.buffer = noiseBuffer(3, false);
+    var vG = actx.createGain(), nG = actx.createGain(); vG.gain.value = 0; nG.gain.value = 0;
+    osc.connect(vG); nz.connect(nG);
+    var F1 = actx.createBiquadFilter(), F2 = actx.createBiquadFilter(); F1.type = F2.type = 'bandpass'; F1.Q.value = 7; F2.Q.value = 10;
+    var g2 = actx.createGain(); g2.gain.value = 0.45;
+    [vG, nG].forEach(function (src) { src.connect(F1); src.connect(F2); });
+    F1.connect(lpf); F2.connect(g2); g2.connect(lpf);
+    var at = t;
+    segs.forEach(function (sg) {
+      var d = sg[0], end = at + d;
+      if (sg[1]) { F1.frequency.linearRampToValueAtTime(sg[1], at + Math.min(0.03, d)); F2.frequency.linearRampToValueAtTime(sg[2], at + Math.min(0.03, d)); }
+      vG.gain.linearRampToValueAtTime(vol * sg[3] * (1 - sg[4]), at + Math.min(0.02, d));
+      nG.gain.linearRampToValueAtTime(vol * sg[3] * sg[4] * 4, at + Math.min(0.02, d));
+      if (sg[5]) osc.frequency.linearRampToValueAtTime(sg[5], end);
+      at = end;
+    });
+    vG.gain.linearRampToValueAtTime(0, at + 0.05); nG.gain.linearRampToValueAtTime(0, at + 0.05);
+    osc.start(t); vib.start(t); nz.start(t); osc.stop(at + 0.1); vib.stop(at + 0.1); nz.stop(at + 0.1);
+  }
+  function helpMe() { // a woman, far off: "Help me..."
+    if (!soundOn || !actx) return;
+    var t = actx.currentTime + 0.2, pan = Math.random() < 0.5 ? -0.75 : 0.75;
+    voice(t, pan, 0.9, 0.09, 235, [
+      [0.08, 600, 1800, 0.5, 1, 240], [0.17, 620, 1800, 1, 0.1, 250], [0.07, 380, 1200, 0.6, 0, 248],
+      [0.07, 0, 0, 0, 0, 0], [0.03, 800, 1500, 0.4, 1, 0],
+      [0.1, 280, 1100, 0.55, 0, 262], [0.42, 320, 2350, 0.9, 0.1, 190], [0.12, 320, 2300, 0.2, 0.3, 180]
+    ]);
+  }
+  function childLaugh() { // a little girl giggling, somewhere close behind the trees
+    if (!soundOn || !actx) return;
+    var t = actx.currentTime + 0.05, segs = [];
+    for (var i = 0; i < 5; i++) {
+      var p = 560 - i * 25;
+      segs.push([0.035, 400, 2600, 0.5, 1, p], [0.085, 390, 2650, 1, 0.15, p - 30], [0.06, 0, 0, 0, 0, 0]);
+    }
+    voice(t, -0.55, 0.75, 0.06, 560, segs);
+  }
+  function creak() { // a rope and a branch taking a weight
+    if (!soundOn || !actx) return;
+    var t = actx.currentTime;
+    [0, 1.05].forEach(function (d, i) {
+      var o = out(-0.2, 0.5, 0.7);
+      var osc = actx.createOscillator(); osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(118 - i * 12, t + d); osc.frequency.linearRampToValueAtTime(92 - i * 8, t + d + 0.8);
+      var gate = actx.createOscillator(); gate.type = 'square'; gate.frequency.setValueAtTime(22, t + d); gate.frequency.linearRampToValueAtTime(34, t + d + 0.8);
+      var gateG = actx.createGain(); gateG.gain.value = 0.5; gate.connect(gateG);
+      var amp = actx.createGain(); amp.gain.value = 0.5; gateG.connect(amp.gain);
+      var bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 760; bp.Q.value = 3;
+      var env = actx.createGain(); env.gain.setValueAtTime(0, t + d); env.gain.linearRampToValueAtTime(0.16, t + d + 0.1); env.gain.linearRampToValueAtTime(0.1, t + d + 0.6); env.gain.linearRampToValueAtTime(0, t + d + 0.85);
+      osc.connect(amp); amp.connect(bp); bp.connect(env); env.connect(o);
+      osc.start(t + d); gate.start(t + d); osc.stop(t + d + 0.9); gate.stop(t + d + 0.9);
+    });
+  }
   function breath(x) { // something in the dark breathing out, then a twig snapping
     if (!soundOn || !actx) return;
     var t = actx.currentTime, o = out(panOf(x), 0.5, 0.7);
@@ -1277,7 +1419,7 @@ body {
       fire.hiss.gain.gain.setTargetAtTime(fire.hiss.base * lift, actx.currentTime, 0.4);
     }
   }, 100);
-  window.FIRESIDE.sound = { child: function () { if (actx) childCall(actx.currentTime + 0.1); }, steps: function () { if (actx) distantFootsteps(); }, gust: function () { wind.target = 1; wind.until = Date.now() + 7000; } };
+  window.FIRESIDE.sound = { child: function () { if (actx) childCall(actx.currentTime + 0.1); }, laugh: function () { childLaugh(); }, help: function () { helpMe(); }, creak: function () { creak(); }, steps: function () { if (actx) distantFootsteps(); }, gust: function () { wind.target = 1; wind.until = Date.now() + 7000; } };
 
   var sb = document.getElementById('sound');
   sb.addEventListener('click', function () {
