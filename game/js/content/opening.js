@@ -46,7 +46,7 @@
     { sfx: 'flash' },
     { flash: 'big' },
     { crt: ['CAM 01 LOBBY', '> SIGNAL LOSS', '> ##@!%&'] },
-    { narrate: 'The light again. Closer this time. The doors were still swinging when he came through them.' },
+    { narrate: 'More lightning, still close. The doors barely slid open enough when he came in.' },
     { enter: 'assassin' },
     { narrate: 'Seven feet of him, give or take. Plates where a coat should be, and a blue glow running along the seams. The rain didn\'t seem to stick to him.' },
     { who: 'assassin', say: 'Directions. The science laboratory.' },

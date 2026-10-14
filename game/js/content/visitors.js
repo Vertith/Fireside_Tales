@@ -66,9 +66,8 @@
         { note: ['scientist', 'Dr. Aldous Kane, fourth floor.'] }
       ],
       want: [
-        { who: 'scientist', say: 'Want? Nothing. I needed to tell someone, and you\'re the only someone here.' },
-        { who: 'scientist', say: 'Tomorrow the world wakes up different, and it started here. Tonight. With us.' },
-        { note: ['scientist', 'Wants nothing. Just needed to tell someone.'] }
+        { who: 'scientist', say: 'Just stay vigilant tonight, this night is critical to all my plans.' },
+        { note: ['scientist', 'Asked what I could do for him. "Just stay vigilant tonight, this night is critical to all my plans."'] }
       ],
       how: [
         { who: 'scientist', say: 'I work here.' },
@@ -90,13 +89,13 @@
       ] },
       { id: 'keys', ask: 'New keys?', requires: 'saw:keys', steps: [
         { who: 'scientist', say: 'Locks got changed. Everyone upstairs is paranoid this week.' },
-        { narrate: 'Nobody changed any locks this week. I\'d have had the memo.' },
-        { note: ['scientist', 'Says the fourth-floor locks were changed. I never got a memo about that.'] }
+        { narrate: 'You would have thought they would let me know, I\'m always the last to know.' },
+        { note: ['scientist', 'Says the fourth-floor locks were changed. Nobody told me, as usual.'] }
       ] },
       { id: 'watch', ask: 'Your watch has the wrong date.', requires: 'saw:watch', steps: [
         { who: 'scientist', say: 'Has it? Cheap thing. It\'s been wrong all week.' },
-        { narrate: 'He tugged his cuff down over it.' },
-        { note: ['scientist', 'Pointed out his watch was wrong. He covered it with his cuff.'] }
+        { narrate: 'He shrugged like time was a regular annoyance for him.' },
+        { note: ['scientist', 'Pointed out his watch was wrong. He shrugged it off like time was a nuisance.'] }
       ] },
       { id: 'coat', ask: 'What happened to your coat?', requires: ['run:saw:scientist.coat'], steps: [
         { who: 'scientist', say: 'Lab accident. Comes with the job.' },
