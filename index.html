@@ -226,6 +226,63 @@ body {
       }
     }
   }
+  // A broad oak: a thick, slightly leaning trunk forking into limbs, under a dome of leaf clumps.
+  // Same lighting as the pines: moon from the upper right, firelight on the side facing the clearing.
+  function oak(g, o) {
+    var r = rng(o.seed || 1), top = o.base - o.h, face = o.cx < FX ? 1 : -1;
+    var tw = Math.max(3, Math.round(o.w / 8)), lean = (r() - 0.5) * 4;
+    var crownBot = o.base - Math.round(o.h * 0.42);
+    // limbs: trunk to a fork, then three limbs up into the crown
+    var fork = [o.cx + lean, crownBot + 4];
+    var limbs = [[fork, [o.cx - o.w * 0.28, top + o.h * 0.3]], [fork, [o.cx + o.w * 0.26, top + o.h * 0.26]], [fork, [o.cx + lean * 0.5, top + o.h * 0.12]]];
+    function thick(a, b, r0, r1, colFn) {
+      var n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) * 2);
+      for (var i = 0; i <= n; i++) {
+        var k = i / n, x = a[0] + (b[0] - a[0]) * k, y = a[1] + (b[1] - a[1]) * k, rr = r0 + (r1 - r0) * k;
+        for (var dx = -Math.ceil(rr); dx <= Math.ceil(rr); dx++) if (Math.abs(dx) <= rr) px(g, Math.round(x + dx), Math.round(y), colFn(dx / Math.max(1, rr), Math.round(y)));
+      }
+    }
+    function bark(nx, y) {
+      var lit = nx * face > 0.3;
+      var c = lit ? o.trunk[1] : o.trunk[0];
+      if (r() < 0.18) c = o.trunk[0];
+      if (o.warm && lit) { var dd = Math.hypot(o.cx - FX, (y - FY) * 1.6); if (dd < o.rim && bayer(o.cx, y) < 1 - dd / o.rim) c = o.warm[0]; }
+      return c;
+    }
+    thick([o.cx, o.base], fork, tw / 2 + 0.6, tw / 2 - 0.4, bark);
+    rect(g, o.cx - tw / 2 - 2, o.base, tw + 4, 1, o.trunk[0]); px(g, Math.round(o.cx - tw / 2 - 2), o.base - 1, o.trunk[0]); px(g, Math.round(o.cx + tw / 2 + 1), o.base - 1, o.trunk[0]);
+    limbs.forEach(function (l) { thick(l[0], l[1], tw / 2 - 0.5, 0.5, bark); });
+    // crown: overlapping leaf clumps over a broad dome
+    var clumps = [], nC = 7 + Math.floor(o.w / 10);
+    for (var i = 0; i < nC; i++) {
+      var a = (i / (nC - 1)) * Math.PI, rad = o.w * (0.17 + r() * 0.08);
+      clumps.push([o.cx + Math.cos(Math.PI - a) * o.w * 0.34 + (r() - 0.5) * 4, top + o.h * 0.3 - Math.sin(a) * o.h * 0.14 + (r() - 0.5) * 4, rad]);
+    }
+    clumps.push([o.cx - o.w * 0.18, top + o.h * 0.4, o.w * 0.2], [o.cx + o.w * 0.2, top + o.h * 0.42, o.w * 0.19], [o.cx, top + o.h * 0.22, o.w * 0.24]);
+    var x0 = Math.floor(o.cx - o.w * 0.75), x1 = Math.ceil(o.cx + o.w * 0.75);
+    for (var y = top - 4; y <= crownBot + 6; y++) for (var x = x0; x <= x1; x++) {
+      // the top-most (last) clump covering this pixel decides its shading
+      var hit = null;
+      for (var c = 0; c < clumps.length; c++) {
+        var cl = clumps[c], ddx = x - cl[0], ddy = (y - cl[1]) * 1.15, rr = cl[2] + ((x * 13 + y * 7) % 3 === 0 ? -1 : 0);
+        if (ddx * ddx + ddy * ddy <= rr * rr) hit = [ddx / cl[2], ddy / cl[2]];
+      }
+      if (!hit) continue;
+      if (y > crownBot - 2 && ((x + y) % 3 === 0)) continue;                      // ragged underside
+      var leaf = (((x >> 1) * 73856093) ^ ((y >> 1) * 19349663)) >>> 0;             // 2x2 leaf clusters
+      var v = 0.5 + 0.32 * hit[0] - 0.34 * hit[1] + ((leaf % 7) / 6 - 0.5) * 0.3;
+      if (y > crownBot - 6) v -= 0.25;                                              // shade under the canopy
+      var col = v < 0.34 ? o.ramp[0] : v < 0.66 ? o.ramp[1] : o.ramp[2];
+      if (v > 0.86 && leaf % 3 === 0) col = o.ramp[3];
+      if (o.warm) {
+        var fs = hit[0] * face, d = Math.hypot(x - FX, (y - FY) * 1.6), k = clamp01(1 - d / o.rim);
+        if (fs > 0.1 && hit[1] > -0.2) { var heat = k * (0.4 + fs) + (bayer(x, y) - 0.5) * 0.12; if (heat > 0.85 && o.warm[1]) col = o.warm[1]; else if (heat > 0.5) col = o.warm[0]; }
+      }
+      px(g, x, y, col);
+    }
+    // a couple of limbs showing through the underside of the canopy
+    limbs.slice(0, 2).forEach(function (l) { var m = [(l[0][0] + l[1][0]) / 2, (l[0][1] + l[1][1]) / 2]; thick(l[0], m, tw / 2 - 0.5, tw / 4, bark); });
+  }
   var RIM = 175;
   var HIDE_TREE = { x: 292, base: HORIZON + 12 }; // the straitjacket figure slips behind this one
 
@@ -282,7 +339,12 @@ body {
       var t = (my - (HORIZON - 14)) / 14 * (0.55 + 0.25 * Math.sin(mx / 30));
       if (bayer(mx, my) < t * 0.6) px(g, mx, my, C.night2);
     }
-    var tr = rng(23);
+    var tr = rng(23), ro = rng(29);
+    for (var fo = 0; fo < 18; fo++) {
+      var ox = Math.floor(ro() * W);
+      oak(g, { cx: ox, base: HORIZON + 2, h: 20 + Math.floor(ro() * 14), w: 22 + Math.floor(ro() * 12), seed: 150 + fo,
+        ramp: dark ? [col, col, col, col] : [C.night1, C.night1, C.night1, C.night2], trunk: [col, col] });
+    }
     for (var f = 0; f < 60; f++) {
       var fx = Math.floor(tr() * W), fh = 22 + Math.floor(tr() * 26);
       pine(g, { cx: fx, base: HORIZON + 2, h: fh, w: 11 + Math.floor(tr() * 8), seed: 100 + f,
@@ -333,8 +395,26 @@ body {
     }
     return cv;
   }
+  // Back row of oaks and pines; the straitjacket figure walks in front of these, behind the rest.
+  function makeMidBack() {
+    var cv = layer(), g = cv.getContext('2d');
+    var br = rng(37);
+    var back = { ramp: [C.night1, C.night1, C.night2, C.night3], trunk: [C.night1, C.night2], warm: null, rim: RIM };
+    for (var bi = 0; bi < 26; bi++) {
+      var bx = Math.floor(br() * (W + 40)) - 20, bb = HORIZON + 3 + Math.floor(br() * 4);
+      if (br() < 0.55) oak(g, { cx: bx, base: bb, h: 44 + Math.floor(br() * 22), w: 38 + Math.floor(br() * 22), seed: 500 + bi, ramp: back.ramp, trunk: back.trunk, warm: back.warm, rim: back.rim });
+      else pine(g, { cx: bx, base: bb, h: 50 + Math.floor(br() * 24), w: 20 + Math.floor(br() * 10), seed: 560 + bi, ramp: back.ramp, trunk: back.trunk, warm: back.warm, rim: back.rim });
+    }
+    return cv;
+  }
   function makeMid() {
     var cv = layer(), g = cv.getContext('2d');
+    // front row: a few broad oaks between the pines
+    var oakSpots = [[118, 64, 56], [196, 58, 50], [356, 66, 58], [452, 60, 52], [30, 62, 54]];
+    oakSpots.forEach(function (sp, i) {
+      oak(g, { cx: sp[0], base: HORIZON + 7 + (i % 3), h: sp[1], w: sp[2], seed: 700 + i, rim: RIM * 1.15,
+        ramp: [C.night1, C.night2, C.night3, C.steel], warm: [C.wood0, null], trunk: [C.night1, C.night3] });
+    });
     var tr = rng(31), placed = [];
     for (var m = 0; m < 22 && placed.length < 15; m++) {
       var mx = Math.floor(tr() * W);
@@ -541,7 +621,7 @@ body {
   var canvas = document.getElementById('scene'), g = canvas.getContext('2d');
   g.imageSmoothingEnabled = false;
   var SKY = makeSky(), FAR = makeFar(C.night1), FAR_DARK = makeFar(C.night0);
-  var GROUND = [0, 1, 2].map(makeGround), MID = makeMid(), NEAR = makeNear();
+  var GROUND = [0, 1, 2].map(makeGround), MID_BACK = makeMidBack(), MID = makeMid(), NEAR = makeNear();
   var wind = { level: 0, target: 0, until: 0 }, fireLife = 0;
   var COALS = []; (function () { var cr = rng(77); for (var k = 0; k < 40; k++) { var a = cr() * Math.PI * 2, d = Math.sqrt(cr()); COALS.push([Math.round(FX + Math.cos(a) * d * 15), Math.round(FY + 1 + Math.sin(a) * d * 4), cr() * 6]); } })();
   var level = 1, hover = null, tick = 0, embers = [], smoke = [];
@@ -559,6 +639,7 @@ body {
       g.drawImage(FAR, 0, 0);
     }
     g.drawImage(GROUND[level], 0, 0);
+    sway(MID_BACK, 1, function (y) { return Math.max(0, (HORIZON + 4 - y) / 70); });
     if (ev && ev.name === 'walker') drawWalker(ev);
     sway(MID, 1.5, function (y) { return Math.max(0, (HORIZON + 6 - y) / 80); });
     // fire
