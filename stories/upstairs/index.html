@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- BUNDLE:HEAD -->
+<title>Upstairs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=VT323&display=swap">
+<link rel="stylesheet" href="css/tale.css">
+<!-- /BUNDLE:HEAD -->
+</head>
+<body class="wide">
+<!-- BUNDLE:BODY -->
+<div id="app">
+  <header id="topbar">
+    <a class="home" href="../../index.html" title="Back to the campfire">&#9668; Fireside</a>
+    <span class="brand">Upstairs</span>
+    <span id="hud"></span>
+    <nav aria-label="Story">
+      <button id="btn-notebook" type="button">Notebook<span class="badge" id="nb-badge" hidden></span></button>
+      <button id="btn-sound" type="button" aria-pressed="true">Sound on</button>
+      <button id="btn-menu" type="button">Menu</button>
+    </nav>
+  </header>
+
+  <div id="frame">
+    <div id="stage">
+      <canvas id="screen" width="480" height="270" aria-label="A dark house at night, seen by flashlight"></canvas>
+      <div id="hots"></div>
+      <div id="ui" data-active="narr">
+        <p id="narr" aria-live="polite"></p>
+        <div id="transcript" aria-live="polite">
+          <b id="who"></b>
+          <p id="line"></p>
+          <div id="controls">
+            <button id="btn-skip" type="button" hidden>I've heard this before — Skip</button>
+            <button id="btn-next" type="button">Next ▸</button>
+          </div>
+        </div>
+        <div id="pad" hidden>
+          <b id="pad-title">Ask</b>
+          <div id="questions"></div>
+        </div>
+        <div id="actions" hidden></div>
+        <div id="zoom" hidden role="dialog" aria-label="Close-up">
+          <button id="zoom-close" type="button" aria-label="Close">X</button>
+          <canvas id="zoom-art" width="32" height="24"></canvas>
+          <b id="zoom-title"></b>
+          <p id="zoom-text"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- title -->
+<div class="overlay" id="title-overlay">
+  <div class="card">
+    <span class="eyebrow">A Fireside Tale</span>
+    <h1 class="title-word">UPSTAIRS</h1>
+    <p>It's 8:40, and it's bedtime. First night in the new house, and you're ready for Mom to tuck you in and read you a book. Maybe the house isn't as creepy as you thought.</p>
+    <p id="title-note"></p>
+    <div class="buttons">
+      <button class="big" id="title-start" type="button">Begin</button>
+      <button class="big danger" id="title-wipe" type="button" hidden>Wipe memory</button>
+    </div>
+  </div>
+</div>
+
+<!-- loop reset -->
+<div class="overlay" id="reset-overlay" hidden>
+  <div class="card">
+    <span class="eyebrow" id="reset-loop">Loop 2</span>
+    <p class="reason" id="reset-reason"></p>
+    <p id="reset-text"></p>
+    <div class="buttons"><button class="big" id="reset-go" type="button">Start again</button></div>
+  </div>
+</div>
+
+<!-- act card -->
+<div class="overlay act" id="act-overlay" hidden>
+  <div class="card">
+    <span class="eyebrow" id="act-eyebrow"></span>
+    <h2 class="title-word small" id="act-title"></h2>
+    <p class="act-hint">Click to continue</p>
+  </div>
+</div>
+
+<!-- ending -->
+<div class="overlay" id="end-overlay" hidden>
+  <div class="card">
+    <span class="eyebrow" id="end-eyebrow"></span>
+    <h2 class="title-word small" id="end-title">The end.</h2>
+    <p id="end-text"></p>
+    <div class="stats" id="end-stats"></div>
+    <div class="buttons">
+      <button class="big" id="end-again" type="button">Go again</button>
+      <button class="big ghost" id="end-notebook" type="button">Read the notebook</button>
+    </div>
+  </div>
+</div>
+
+<!-- notebook -->
+<div class="overlay" id="notebook-overlay" hidden data-dismiss>
+  <div class="sheet notebook" role="dialog" aria-labelledby="nb-title">
+    <button class="close" type="button" data-close>Close</button>
+    <h2 id="nb-title">Notebook</h2>
+    <p class="sub">My notebook. It remembers every night, even the ones that start over. Underlined lines are new this time.</p>
+    <div id="notebook-body"></div>
+  </div>
+</div>
+
+<!-- puzzles -->
+<div class="overlay" id="puzzle-overlay" hidden>
+  <div class="sheet puzzle" role="dialog" aria-labelledby="pz-title">
+    <h2 id="pz-title"></h2>
+    <p class="sub" id="pz-sub"></p>
+    <div id="pz-body"></div>
+    <p id="pz-msg" aria-live="polite"></p>
+    <div class="buttons"><button class="big ghost" id="pz-quit" type="button">Put it down</button></div>
+  </div>
+</div>
+
+<!-- menu -->
+<div class="overlay" id="menu-overlay" hidden data-dismiss>
+  <div class="sheet" role="dialog" aria-labelledby="menu-title">
+    <button class="close" type="button" data-close>Close</button>
+    <h2 id="menu-title">Menu</h2>
+    <p class="sub">Click the picture or press Space to continue. S skips a line you've heard. 1 to 9 picks from the list. Click on someone to look closer. Going to one of them is how they get you.</p>
+    <div class="menu-list">
+      <button id="menu-restart" type="button">Start the night over (counts as a night)</button>
+      <button id="menu-wipe" class="danger" type="button">Wipe memory and start over</button>
+    </div>
+  </div>
+</div>
+<!-- /BUNDLE:BODY -->
+
+<!-- BUNDLE:SCRIPTS -->
+<script src="js/content/config.js"></script>
+<script src="js/art.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/puzzles.js"></script>
+<script src="js/content/characters.js"></script>
+<script src="js/content/people.js"></script>
+<script src="js/content/scenes.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+<!-- /BUNDLE:SCRIPTS -->
+</body>
+</html>

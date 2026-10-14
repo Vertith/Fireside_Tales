@@ -138,13 +138,13 @@ body {
   // Where Emit Time lives: next to this page on GitHub Pages or from disk,
   // otherwise (inside a claude.ai artifact) the published site in a new tab.
   var local = location.protocol === 'file:' || /github\.io$/.test(location.hostname) || location.hostname === 'localhost';
-  var EMIT_URL = local ? 'game/index.html' : 'https://vertith.github.io/Emit-Time/game/';
+  var SITE = local ? '' : 'https://vertith.github.io/fireside_tales/';
 
   var FX = 240, FY = 200; // fire base
   var TALES = [
-    { id: 'emit', name: 'Emit Time', x: 92, y: 204, ready: true },
+    { id: 'emit', name: 'Emit Time', x: 92, y: 204, ready: true, url: local ? 'game/index.html' : SITE + 'game/' },
     { id: 'asylum', name: 'The Asylum', x: 148, y: 164 },
-    { id: 'upstairs', name: 'Upstairs', x: 240, y: 150 },
+    { id: 'upstairs', name: 'Upstairs', x: 240, y: 150, ready: true, url: local ? 'stories/upstairs/index.html' : SITE + 'stories/upstairs/' },
     { id: 'walks', name: 'It Walks', x: 332, y: 164 },
     { id: 'lab', name: 'The Lab', x: 388, y: 204 }
   ];
@@ -1094,7 +1094,7 @@ body {
   TALES.forEach(function (t) {
     var el = document.createElement(t.ready ? 'a' : 'button');
     el.className = 'tale';
-    if (t.ready) { el.href = EMIT_URL; if (!local) { el.target = '_blank'; el.rel = 'noopener'; } }
+    if (t.ready) { el.href = t.url; if (!local) { el.target = '_blank'; el.rel = 'noopener'; } }
     else el.type = 'button';
     var bx = t.x - 26, by = t.y - 30, bw = 52, bh = 52;
     el.style.left = (bx / W * 100) + '%'; el.style.top = (by / H * 100) + '%';
@@ -1111,7 +1111,7 @@ body {
         if (!local) return; // new tab; the hub stays put
         ev.preventDefault();
         document.getElementById('fade').classList.add('on');
-        setTimeout(function () { location.href = EMIT_URL; }, reduced ? 0 : 750);
+        setTimeout(function () { location.href = t.url; }, reduced ? 0 : 750);
         return;
       }
       lastFocus = el;

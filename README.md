@@ -1,6 +1,6 @@
 # Fireside Tales
 
-A set of click-based pixel art story games, told around a campfire. The site opens on the fire ([`index.html`](index.html)); pick a tale from the stumps around it. **Emit Time** is the first one finished. The Asylum, Upstairs, It Walks and The Lab are coming.
+A set of click-based pixel art story games, told around a campfire. The site opens on the fire ([`index.html`](index.html)); pick a tale from the stumps around it. **Emit Time** and **Upstairs** are finished. The Asylum, It Walks and The Lab are coming.
 
 ## Emit Time
 
@@ -10,7 +10,7 @@ It's a stormy night in 1993 at Science Corp. You're the security guard on the fr
 
 ## Play
 
-- **Online:** [vertith.github.io/Emit-Time](https://vertith.github.io/Emit-Time/) opens the campfire; Emit Time itself is at [/game/](https://vertith.github.io/Emit-Time/game/)
+- **Online:** [vertith.github.io/fireside_tales](https://vertith.github.io/fireside_tales/) opens the campfire; Emit Time itself is at [/game/](https://vertith.github.io/fireside_tales/game/)
 - **In a browser:** open `game/index.html`, or the single-file build `game/dist/emit-time.html`. No build step or server needed.
 - **On Windows:** the V1.3 Beta installer and portable zip are distributed separately (they're too large for the repository). See [`releases/v1.3beta/README.md`](releases/v1.3beta/README.md).
 
@@ -19,6 +19,7 @@ It's a stormy night in 1993 at Science Corp. You're the security guard on the fr
 | Folder | Contents |
 |---|---|
 | [`game/`](game/) | The game: plain HTML, CSS and JavaScript. Its [README](game/README.md) covers the engine, content files and how to write scenes |
-| [`story/`](story/) | Story bible, story arc, visitor tells and alternate endings |
+| [`stories/`](stories/) | The other tales. [`stories/upstairs/`](stories/upstairs/) is Upstairs; [`stories/README.md`](stories/README.md) explains how to start a new one from the template |
+| [`story/`](story/) | Emit Time's story bible, story arc, visitor tells and alternate endings, plus [`story/upstairs/`](story/upstairs/) for Upstairs |
 | [`art/`](art/) | Style guide, palette and desk-scene mockups |
 | [`releases/v1.3beta/`](releases/v1.3beta/) | Release notes and EULA for the Windows build |
