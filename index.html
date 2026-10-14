@@ -131,6 +131,7 @@ body {
     paper: '#d9cfb4', paperShade: '#a89c80', paperDark: '#6e6552',
     brown0: '#2e1f17', brown1: '#4f3527', brown2: '#7a5640',
     crt0: '#0f2a1c', crt1: '#2f8f5a', crt2: '#7dffb0',
+    skinA0: '#5a3428', skinA1: '#9a634c', skinA2: '#d29a78',
     red0: '#5c1a22', red1: '#a8323a', fut1: '#3fe0ff', flash: '#eef4ff'
   };
 
@@ -188,7 +189,7 @@ body {
     for (var ty = crownBot - 6; ty <= o.base; ty++) for (var tx = -Math.floor(tw / 2); tx < Math.ceil(tw / 2); tx++) {
       var lit = tx * face >= Math.floor(tw / 2) - 1;
       var c = (r() < 0.25) ? o.trunk[0] : lit ? o.trunk[1] : o.trunk[0];
-      if (o.warm && lit) { var dd = Math.hypot(o.cx - FX, (ty - FY) * 1.6); if (dd < o.rim && bayer(o.cx + tx, ty) < 1 - dd / o.rim) c = o.warm[0]; }
+      if (o.warm && lit) { var dd = Math.hypot(o.cx - FX, (ty - FY) * 1.6); if (dd < o.rim * 0.6) c = o.warm[0]; }
       px(g, o.cx + tx, ty, c);
     }
     if (tw >= 3) { rect(g, o.cx - Math.floor(tw / 2) - 1, o.base, tw + 2, 1, o.trunk[0]); }
@@ -246,7 +247,7 @@ body {
       var lit = nx * face > 0.3;
       var c = lit ? o.trunk[1] : o.trunk[0];
       if (r() < 0.18) c = o.trunk[0];
-      if (o.warm && lit) { var dd = Math.hypot(o.cx - FX, (y - FY) * 1.6); if (dd < o.rim && bayer(o.cx, y) < 1 - dd / o.rim) c = o.warm[0]; }
+      if (o.warm && lit) { var dd = Math.hypot(o.cx - FX, (y - FY) * 1.6); if (dd < o.rim * 0.6) c = o.warm[0]; }
       return c;
     }
     thick([o.cx, o.base], fork, tw / 2 + 0.6, tw / 2 - 0.4, bark);
@@ -396,34 +397,43 @@ body {
     return cv;
   }
   // Back row of oaks and pines; the straitjacket figure walks in front of these, behind the rest.
+  // One treeline of pines and oaks at mixed depths: farther trees are smaller and dimmer,
+  // nearer ones bigger and brighter. Drawn far to near; a depth window picks which slice a layer gets.
+  var TREELINE = (function () {
+    var r = rng(37), list = [];
+    for (var i = 0; i < 46; i++) {
+      var d = r(), x = Math.floor(r() * (W + 40)) - 20, isOak = r() < 0.5;
+      if (d > 0.6 && Math.abs(x - FX) < 34) continue;
+      list.push({ d: d, x: x, oak: isOak, seed: 500 + i, k: r(), j: r() });
+    }
+    return list.sort(function (a, b) { return a.d - b.d; });
+  })();
+  function treeline(g, d0, d1) {
+    var ramps = [[C.night1, C.night1, C.night2, C.night3], [C.night1, C.night2, C.night2, C.night3], [C.night1, C.night2, C.night3, C.steel]];
+    TREELINE.forEach(function (t) {
+      if (t.d < d0 || t.d >= d1) return;
+      var s = 0.75 + t.d * 0.45, base = HORIZON + 3 + Math.round(t.d * 11);
+      var o = { cx: t.x, base: base, seed: t.seed, rim: RIM * 1.15, ramp: ramps[Math.min(2, Math.floor(t.d * 3))],
+        warm: t.d > 0.5 ? [C.wood0, null] : null, trunk: [C.night1, t.d > 0.5 ? C.night3 : C.night2] };
+      if (t.oak) { o.h = Math.round((48 + t.k * 20) * s); o.w = Math.round((40 + t.j * 20) * s); oak(g, o); }
+      else { o.h = Math.round((54 + t.k * 26) * s); o.w = Math.round((20 + t.j * 10) * s); pine(g, o); }
+    });
+  }
   function makeMidBack() {
     var cv = layer(), g = cv.getContext('2d');
-    var br = rng(37);
-    var back = { ramp: [C.night1, C.night1, C.night2, C.night3], trunk: [C.night1, C.night2], warm: null, rim: RIM };
-    for (var bi = 0; bi < 26; bi++) {
-      var bx = Math.floor(br() * (W + 40)) - 20, bb = HORIZON + 3 + Math.floor(br() * 4);
-      if (br() < 0.55) oak(g, { cx: bx, base: bb, h: 44 + Math.floor(br() * 22), w: 38 + Math.floor(br() * 22), seed: 500 + bi, ramp: back.ramp, trunk: back.trunk, warm: back.warm, rim: back.rim });
-      else pine(g, { cx: bx, base: bb, h: 50 + Math.floor(br() * 24), w: 20 + Math.floor(br() * 10), seed: 560 + bi, ramp: back.ramp, trunk: back.trunk, warm: back.warm, rim: back.rim });
-    }
+    treeline(g, 0, 0.62);
     return cv;
   }
   function makeMid() {
     var cv = layer(), g = cv.getContext('2d');
-    // front row: a few broad oaks between the pines
-    var oakSpots = [[118, 64, 56], [196, 58, 50], [356, 66, 58], [452, 60, 52], [30, 62, 54]];
-    oakSpots.forEach(function (sp, i) {
-      oak(g, { cx: sp[0], base: HORIZON + 7 + (i % 3), h: sp[1], w: sp[2], seed: 700 + i, rim: RIM * 1.15,
-        ramp: [C.night1, C.night2, C.night3, C.steel], warm: [C.wood0, null], trunk: [C.night1, C.night3] });
+    treeline(g, 0.62, 1.01);
+    // trees pressing in on the clearing, upper left and upper right
+    [[62, 158, 'pine', 84, 30], [128, 146, 'oak', 66, 52], [184, 136, 'pine', 66, 24], [206, 133, 'oak', 50, 40],
+     [300, 136, 'pine', 66, 24], [322, 140, 'oak', 60, 50], [366, 146, 'oak', 70, 58], [402, 152, 'pine', 84, 30], [444, 160, 'pine', 88, 32]].forEach(function (t, i) {
+      var o = { cx: t[0], base: t[1], h: t[3], w: t[4], seed: 800 + i, rim: RIM * 1.25,
+        ramp: [C.night1, C.night2, C.night3, C.steel], warm: [C.wood0, C.wood1], trunk: [C.night1, C.night3] };
+      if (t[2] === 'oak') oak(g, o); else pine(g, o);
     });
-    var tr = rng(31), placed = [];
-    for (var m = 0; m < 22 && placed.length < 15; m++) {
-      var mx = Math.floor(tr() * W);
-      var hh = 58 + Math.floor(tr() * 32), ww = 24 + Math.floor(tr() * 12), base = HORIZON + 8 + Math.floor(tr() * 6);
-      if (Math.abs(mx - FX) < 34 || placed.some(function (p) { return Math.abs(p - mx) < 14; })) continue;
-      placed.push(mx);
-      pine(g, { cx: mx, base: base, h: hh, w: ww, seed: 300 + m, rim: RIM * 1.15,
-        ramp: [C.night1, C.night2, C.night3, C.steel], warm: [C.wood0, null], trunk: [C.night1, C.night3] });
-    }
     pine(g, { cx: HIDE_TREE.x, base: HIDE_TREE.base, h: 86, w: 34, seed: 299, rim: RIM * 1.15,
       ramp: [C.night1, C.night2, C.night3, C.steel], warm: [C.wood0, null], trunk: [C.night1, C.night3] });
     // It Walks: a trail of prints from its stump into the trees
@@ -496,7 +506,10 @@ body {
   function makeNear() {
     var cv = layer(), g = cv.getContext('2d');
     var near = { ramp: [C.night0, C.night0, C.night1, C.night2], warm: [C.wood0, C.wood1], rim: RIM * 1.35, trunk: [C.night0, C.night1] };
-    [[22, 284, 252, 92, 1], [64, 254, 172, 54, 2], [460, 284, 252, 92, 3], [418, 250, 162, 50, 4]].forEach(function (t) {
+    // left: two big oaks, their canopy hanging over the top-left corner; right: the tall pines
+    oak(g, { cx: 70, base: 252, h: 190, w: 118, seed: 902, ramp: near.ramp, warm: near.warm, rim: near.rim, trunk: near.trunk });
+    oak(g, { cx: 14, base: 286, h: 270, w: 150, seed: 901, ramp: near.ramp, warm: near.warm, rim: near.rim, trunk: near.trunk });
+    [[460, 284, 252, 92, 3], [418, 250, 162, 50, 4]].forEach(function (t) {
       pine(g, { cx: t[0], base: t[1], h: t[2], w: t[3], seed: 900 + t[4], ramp: near.ramp, warm: near.warm, rim: near.rim, trunk: near.trunk });
     });
     // foreground ferns and grass, black against the light
@@ -753,21 +766,34 @@ body {
 
   // 2. A figure in a straitjacket crosses the far trees and slips behind one.
   var WALKER = [
-    '..hhh..',
-    '..hss..',
-    '..sss..',
-    '.jjjjj.',
-    'jjJjjjj',
-    'jJJJJJj',
-    'jjjjjJj',
-    '.jjjjj.',
-    '.jjJjj.'
+    '...hhh...',
+    '..hhhhh..',
+    '.hhsssh..',
+    '..sesek..',
+    '..sssss..',
+    '...sks...',
+    '..pjjjj..',
+    '.pjjjjjj.',
+    'pjJJJJJjj',
+    'jjjjjjJJj',
+    'jbjjjjjJj',
+    '.jjjjjjj.',
+    '.jjjBjjk.',
+    '..jjBjj..'
   ];
   function drawWalker(e) {
-    var x = Math.round(e.x) - 3, feet = HORIZON + 4, step = Math.floor(e.t / 6) % 2, bob = step;
-    sprite(g, WALKER, { h: C.night0, s: C.skinA0, j: C.paperShade, J: C.paperDark }, x, feet - 15 + bob);
-    var legs = step ? [[2, 0], [4, 0]] : [[1, 0], [5, 0]];
-    legs.forEach(function (l) { rect(g, x + l[0], feet - 6 + bob, 1, 6 - bob, C.night3); });
+    var x = Math.round(e.x) - 4, feet = HORIZON + 4, step = Math.floor(e.t / 7) % 2, bob = step;
+    var tilt = (e.t % 90) > 70 ? 1 : 0; // now and then his head lolls to one side
+    var top = feet - 19 + bob;
+    var map = { h: C.night0, s: C.skinA1, e: C.night0, k: C.night1, p: C.paper, j: C.paperShade, J: C.paperDark, b: C.steel, B: C.paperDark };
+    sprite(g, WALKER.slice(6), map, x, top + 6);
+    sprite(g, WALKER.slice(0, 6), map, x + tilt, top + tilt);
+    // trousers and bare feet
+    var legs = step ? [[3, 1], [5, -1]] : [[2, 0], [6, 0]];
+    legs.forEach(function (l) {
+      rect(g, x + l[0], top + 14, 1, 5 - bob, C.night3); px(g, x + l[0] + 1, top + 14, C.night2);
+      px(g, x + l[0] + (l[1] > 0 ? 1 : 0), feet - 1 + (l[1] < 0 ? -1 : 0), C.skinA0);
+    });
   }
 
   // 3. A deer comes up by the fire, heads into the woods, looks back and changes.
