@@ -367,6 +367,7 @@ body {
   g.imageSmoothingEnabled = false;
   var SKY = makeSky(), FAR = makeFar(C.night1), FAR_DARK = makeFar(C.night0);
   var GROUND = [0, 1, 2].map(makeGround), MID = makeMid(), NEAR = makeNear();
+  var wind = { level: 0, target: 0, until: 0 };
   var level = 1, hover = null, tick = 0, embers = [], smoke = [];
   var tw = rng(99), twinkles = [];
   for (var i = 0; i < 6; i++) twinkles.push([Math.floor(tw() * 300) + 90, Math.floor(tw() * 60) + 4]);
@@ -383,7 +384,7 @@ body {
     }
     g.drawImage(GROUND[level], 0, 0);
     if (ev && ev.name === 'walker') drawWalker(ev);
-    g.drawImage(MID, 0, 0);
+    sway(MID, 1.5, function (y) { return Math.max(0, (HORIZON + 6 - y) / 80); });
     // fire
     for (var y = 0; y < FH; y++) for (var x = 0; x < FW; x++) {
       var v = heat[y * FW + x]; if (v) px(g, FX - FW / 2 + x, FY - FH + y, FIRE_COL[v]);
@@ -405,17 +406,30 @@ body {
       if (t.id === 'lab') bubbles.forEach(function (b) { px(g, o[0] + b.x, o[1] + Math.round(b.y), C.crt2); });
     });
     if (ev && ev.name === 'deer') drawDeerEvent(ev);
-    g.drawImage(NEAR, 0, 0);
+    sway(NEAR, 2.5, function (y) { return Math.max(0, (236 - y) / 210); });
     if (ev && ev.name === 'eyes') drawEyes(ev);
+  }
+  // Gusts bend the treetops: each row of a tree layer shifts by a whole pixel or two.
+  function sway(layerCv, amp, weight) {
+    var lv = wind.level;
+    if (lv < 0.05) { g.drawImage(layerCv, 0, 0); return; }
+    var y0 = 0;
+    while (y0 < H) {
+      var off = Math.round(amp * lv * weight(y0) * (0.6 + 0.4 * Math.sin(tick / 5 + y0 / 40)));
+      var y1 = y0 + 1;
+      while (y1 < H && Math.round(amp * lv * weight(y1) * (0.6 + 0.4 * Math.sin(tick / 5 + y1 / 40))) === off) y1++;
+      g.drawImage(layerCv, 0, y0, W, y1 - y0, off, y0, W, y1 - y0);
+      y0 = y1;
+    }
   }
   function update() {
     tick++;
     stepFire();
     if (tick % 4 === 0) { var n = level + (Math.random() < 0.5 ? -1 : 1); level = Math.max(0, Math.min(2, n)); }
     if (Math.random() < 0.18) embers.push({ x: FX - 5 + Math.random() * 10, y: FY - 10, vx: (Math.random() - 0.5) * 0.6, life: 26 + Math.random() * 20 });
-    embers = embers.filter(function (p) { p.x += p.vx + Math.sin((tick + p.life) / 5) * 0.3; p.y -= 0.9; return --p.life > 0; });
+    embers = embers.filter(function (p) { p.x += p.vx + Math.sin((tick + p.life) / 5) * 0.3 + wind.level * 0.9; p.y -= 0.9; return --p.life > 0; });
     if (tick % 5 === 0) smoke.push({ x: FX - 2 + Math.random() * 4, y: FY - 22, life: 40 });
-    smoke = smoke.filter(function (s) { s.y -= 0.6; s.x += 0.25 + Math.sin(s.y / 6) * 0.3; return --s.life > 0; });
+    smoke = smoke.filter(function (s) { s.y -= 0.6; s.x += 0.25 + Math.sin(s.y / 6) * 0.3 + wind.level * 1.2; return --s.life > 0; });
     if (Math.random() < 0.15) bubbles.push({ x: 3 + Math.floor(Math.random() * 5), y: 7 });
     bubbles = bubbles.filter(function (b) { b.y -= 0.35; return b.y > 4; });
     stepEvent();
@@ -443,8 +457,8 @@ body {
     }
     ev.t++;
     if (ev.name === 'lightning' && ev.t > LIGHTNING.length) endEvent();
-    else if (ev.name === 'walker') { ev.x += 0.55; if (ev.x >= HIDE_TREE.x) endEvent(); }
-    else if (ev.name === 'eyes' && ev.t > 70) endEvent();
+    else if (ev.name === 'walker') { ev.x += 0.55; if (ev.t % 6 === 0) shuffle(ev.x); if (ev.x >= HIDE_TREE.x) endEvent(); }
+    else if (ev.name === 'eyes') { if (ev.t === 8) breath(ev.x); if (ev.t > 70) endEvent(); }
     else if (ev.name === 'deer') stepDeer(ev);
   }
 
@@ -500,6 +514,9 @@ body {
 
   // 3. A deer comes up by the fire, heads into the woods, looks back and changes.
   function stepDeer(e) {
+    if (e.phase < 2 && e.t % 4 === 0) hoof(e.x);
+    if (e.phase === 4 && e.hold === 1) growl(e.x);
+    if (e.phase === 5 && e.t % 3 === 0) runStep(e.x);
     if (e.phase === 0) { e.x -= 1; if (e.x <= 300) { e.phase = 1; e.sx = e.x; e.sy = e.y; e.k = 0; } }
     else if (e.phase === 1) { e.k += 0.008; e.x = e.sx + (372 - e.sx) * e.k; e.y = e.sy + (176 - e.sy) * e.k; if (e.k >= 1) { e.phase = 2; e.hold = 0; } }
     else if (e.phase === 2) { if (++e.hold > 14) { e.phase = 3; e.hold = 0; } }
@@ -619,40 +636,186 @@ body {
   }
   window.addEventListener('resize', fit); fit();
 
-  // ---------- sound: a crackling fire, synthesised ----------
-  var actx = null, master = null, soundOn = false, crackleTimer = null;
+  // ---------- sound: everything synthesised, nothing loaded ----------
+  // Buses: fire and wind beds, distant one-shots (sent to a long reverb), the event sounds, and a soft music loop.
+  var actx = null, master, amb, verb, music, windGain, windFilter, soundOn = false, crackleTimer = null, musicNext = 0;
+  function noiseBuffer(sec, brown) {
+    var n = Math.floor(actx.sampleRate * sec), buf = actx.createBuffer(1, n, actx.sampleRate), ch = buf.getChannelData(0), b = 0;
+    for (var k = 0; k < n; k++) { var w = Math.random() * 2 - 1; if (brown) { b = (b + 0.02 * w) / 1.02; ch[k] = b * 3.5; } else ch[k] = w; }
+    return buf;
+  }
   function startSound() {
     if (!actx) {
       var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-      actx = new AC(); master = actx.createGain(); master.gain.value = 0.5; master.connect(actx.destination);
-      var len = actx.sampleRate * 2, buf = actx.createBuffer(1, len, actx.sampleRate), ch = buf.getChannelData(0), b = 0;
-      for (var k = 0; k < len; k++) { b = (b + 0.02 * (Math.random() * 2 - 1)) / 1.02; ch[k] = b * 3.5; }
-      var src = actx.createBufferSource(); src.buffer = buf; src.loop = true;
+      actx = new AC();
+      master = actx.createGain(); master.gain.value = 0.6; master.connect(actx.destination);
+      amb = actx.createGain(); amb.gain.value = 1; amb.connect(master);
+      music = actx.createGain(); music.gain.value = 0.16; music.connect(master);
+      // a long, dark reverb for anything far away
+      var ir = actx.createBuffer(2, actx.sampleRate * 3, actx.sampleRate);
+      for (var c = 0; c < 2; c++) { var d = ir.getChannelData(c); for (var k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / d.length, 3); }
+      var conv = actx.createConvolver(); conv.buffer = ir;
+      var vlp = actx.createBiquadFilter(); vlp.type = 'lowpass'; vlp.frequency.value = 2400;
+      verb = actx.createGain(); verb.gain.value = 1;
+      verb.connect(conv); conv.connect(vlp); vlp.connect(master);
+      // fire bed: a low brown-noise roar
+      var src = actx.createBufferSource(); src.buffer = noiseBuffer(2, true); src.loop = true;
       var lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
-      var rg = actx.createGain(); rg.gain.value = 0.35;
-      src.connect(lp); lp.connect(rg); rg.connect(master); src.start();
+      var rg = actx.createGain(); rg.gain.value = 0.3;
+      src.connect(lp); lp.connect(rg); rg.connect(amb); src.start();
+      // wind bed: band-passed noise that follows the gusts
+      var wsrc = actx.createBufferSource(); wsrc.buffer = noiseBuffer(4, false); wsrc.loop = true;
+      windFilter = actx.createBiquadFilter(); windFilter.type = 'bandpass'; windFilter.frequency.value = 450; windFilter.Q.value = 0.8;
+      windGain = actx.createGain(); windGain.gain.value = 0.03;
+      wsrc.connect(windFilter); windFilter.connect(windGain); windGain.connect(amb); wsrc.start();
     }
     actx.resume();
-    (function loop() { crackle(0.25 + Math.random() * 0.4); crackleTimer = setTimeout(loop, 60 + Math.random() * 380); })();
+    if (musicNext < actx.currentTime) musicNext = actx.currentTime + 0.5;
+    (function loop() { crackle(0.2 + Math.random() * 0.35 + wind.level * 0.2); crackleTimer = setTimeout(loop, 60 + Math.random() * 380); })();
+  }
+  function out(pan, wet, dry) {
+    var gIn = actx.createGain(), p = actx.createStereoPanner ? actx.createStereoPanner() : null;
+    var dryG = actx.createGain(); dryG.gain.value = dry == null ? 1 : dry;
+    if (p) { p.pan.value = Math.max(-1, Math.min(1, pan || 0)); gIn.connect(p); p.connect(dryG); } else gIn.connect(dryG);
+    dryG.connect(amb);
+    if (wet) { var w = actx.createGain(); w.gain.value = wet; gIn.connect(w); w.connect(verb); }
+    return gIn;
+  }
+  function panOf(x) { return (x / W) * 2 - 1; }
+  function burst(dest, t, len, type, freq, vol, attack) {
+    var s = actx.createBufferSource(); s.buffer = noiseBuffer(len, false);
+    var f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    var gn = actx.createGain(); gn.gain.setValueAtTime(0.0001, t);
+    gn.gain.linearRampToValueAtTime(vol, t + (attack || 0.004)); gn.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    s.connect(f); f.connect(gn); gn.connect(dest); s.start(t); s.stop(t + len + 0.05);
   }
   function crackle(vol) {
     if (!soundOn || !actx) return;
-    var n = Math.floor(actx.sampleRate * 0.02), buf = actx.createBuffer(1, n, actx.sampleRate), ch = buf.getChannelData(0);
-    for (var k = 0; k < n; k++) ch[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / n, 4);
-    var s = actx.createBufferSource(); s.buffer = buf;
-    var hp = actx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1200 + Math.random() * 2500;
-    var gn = actx.createGain(); gn.gain.value = vol;
-    s.connect(hp); hp.connect(gn); gn.connect(master); s.start();
+    burst(amb, actx.currentTime, 0.02 + Math.random() * 0.02, 'highpass', 1200 + Math.random() * 2500, vol);
   }
   function thunder() {
     if (!soundOn || !actx) return;
-    var n = actx.sampleRate * 3, buf = actx.createBuffer(1, n, actx.sampleRate), ch = buf.getChannelData(0), b = 0;
+    var s = actx.createBufferSource(), n = actx.sampleRate * 3, buf = actx.createBuffer(1, n, actx.sampleRate), ch = buf.getChannelData(0), b = 0;
     for (var k = 0; k < n; k++) { b = (b + 0.05 * (Math.random() * 2 - 1)) / 1.05; ch[k] = b * 6 * Math.pow(1 - k / n, 2); }
-    var s = actx.createBufferSource(); s.buffer = buf;
+    s.buffer = buf;
     var lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 220;
     var gn = actx.createGain(); gn.gain.value = 0.9;
-    s.connect(lp); lp.connect(gn); gn.connect(master); s.start();
+    s.connect(lp); lp.connect(gn); gn.connect(out(0.4, 0.4)); s.start();
   }
+  // one footfall: a soft thump plus a little leaf crunch
+  function footstep(t, pan, vol, wet, heavy) {
+    var o = out(pan, wet, 1 - wet * 0.6);
+    burst(o, t, heavy ? 0.16 : 0.1, 'lowpass', heavy ? 260 : 520, vol);
+    burst(o, t + 0.01, 0.06, 'bandpass', 2200 + Math.random() * 1500, vol * 0.35);
+  }
+  function distantFootsteps() {
+    var t = actx.currentTime + 0.1, pan = Math.random() < 0.5 ? -0.8 : 0.8, n = 5 + Math.floor(Math.random() * 6), gap = 0.55 + Math.random() * 0.2;
+    for (var i = 0; i < n; i++) footstep(t + i * gap + Math.random() * 0.05, pan - Math.sign(pan) * i * 0.05, 0.05 + 0.02 * Math.sin(i / n * Math.PI), 0.7);
+  }
+  // a child, far off in the trees: "mom?" — a buzz shaped by vowel formants, pitch rising at the end
+  function childCall(t) {
+    var pan = Math.random() * 1.4 - 0.7, o = out(pan, 0.9, 0.35);
+    var lpf = actx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 2600; lpf.connect(o);
+    var osc = actx.createOscillator(); osc.type = 'sawtooth';
+    var vib = actx.createOscillator(), vibG = actx.createGain(); vib.frequency.value = 5.5; vibG.gain.value = 6; vib.connect(vibG); vibG.connect(osc.frequency);
+    var f0 = osc.frequency;
+    f0.setValueAtTime(380, t); f0.linearRampToValueAtTime(350, t + 0.35); f0.linearRampToValueAtTime(345, t + 0.5); f0.exponentialRampToValueAtTime(520, t + 0.95);
+    var F = [actx.createBiquadFilter(), actx.createBiquadFilter(), actx.createBiquadFilter()], FG = [0.9, 0.5, 0.15];
+    var amp = actx.createGain(); amp.gain.value = 0; amp.connect(lpf);
+    F.forEach(function (f, i) { f.type = 'bandpass'; f.Q.value = 9; var gg = actx.createGain(); gg.gain.value = FG[i]; osc.connect(f); f.connect(gg); gg.connect(amp); });
+    // m ... o ... m?  (nasal, open vowel, nasal again)
+    var f1 = F[0].frequency, f2 = F[1].frequency, f3 = F[2].frequency;
+    f1.setValueAtTime(300, t); f2.setValueAtTime(1100, t); f3.setValueAtTime(2600, t);
+    f1.linearRampToValueAtTime(720, t + 0.16); f2.linearRampToValueAtTime(1150, t + 0.16);
+    f1.setValueAtTime(720, t + 0.62); f1.linearRampToValueAtTime(320, t + 0.75); f2.linearRampToValueAtTime(1000, t + 0.75);
+    var A = amp.gain;
+    A.setValueAtTime(0, t); A.linearRampToValueAtTime(0.03, t + 0.06); A.linearRampToValueAtTime(0.11, t + 0.2);
+    A.setValueAtTime(0.11, t + 0.6); A.linearRampToValueAtTime(0.05, t + 0.78); A.linearRampToValueAtTime(0.04, t + 0.92); A.linearRampToValueAtTime(0, t + 1.05);
+    osc.start(t); vib.start(t); osc.stop(t + 1.1); vib.stop(t + 1.1);
+  }
+  // event sounds
+  function shuffle(x) { // the straitjacket figure: a dragging step
+    if (!soundOn || !actx) return;
+    var o = out(panOf(x), 0.6, 0.6), t = actx.currentTime;
+    burst(o, t, 0.32, 'lowpass', 600, 0.05, 0.12);
+    burst(o, t + 0.05, 0.2, 'bandpass', 1800, 0.012, 0.08);
+  }
+  function hoof(x) { if (soundOn && actx) footstep(actx.currentTime, panOf(x), 0.05, 0.25); }
+  function runStep(x) { if (soundOn && actx) footstep(actx.currentTime, panOf(x), 0.1, 0.3, true); }
+  function growl(x) { // the deer changing: a bone crack and a low, rough growl
+    if (!soundOn || !actx) return;
+    var t = actx.currentTime, o = out(panOf(x), 0.4, 0.8);
+    [0, 0.09, 0.22].forEach(function (d) { burst(o, t + d, 0.05, 'highpass', 1800, 0.25); });
+    var osc = actx.createOscillator(); osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(90, t + 0.2); osc.frequency.linearRampToValueAtTime(58, t + 1.4);
+    var fm = actx.createOscillator(), fmG = actx.createGain(); fm.frequency.value = 23; fmG.gain.value = 30; fm.connect(fmG); fmG.connect(osc.frequency);
+    var lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500;
+    var gn = actx.createGain(); gn.gain.setValueAtTime(0, t + 0.2); gn.gain.linearRampToValueAtTime(0.22, t + 0.45); gn.gain.linearRampToValueAtTime(0, t + 1.5);
+    osc.connect(lp); lp.connect(gn); gn.connect(o); osc.start(t + 0.2); fm.start(t + 0.2); osc.stop(t + 1.6); fm.stop(t + 1.6);
+  }
+  function breath(x) { // something in the dark breathing out, then a twig snapping
+    if (!soundOn || !actx) return;
+    var t = actx.currentTime, o = out(panOf(x), 0.5, 0.7);
+    burst(o, t, 1.6, 'bandpass', 380, 0.07, 0.8);
+    burst(o, t + 2.4, 0.04, 'highpass', 2500, 0.12);
+    var s = actx.createOscillator(); s.frequency.value = 55;
+    var gn = actx.createGain(); gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(0.06, t + 1.2); gn.gain.linearRampToValueAtTime(0, t + 3.5);
+    s.connect(gn); gn.connect(o); s.start(t); s.stop(t + 3.6);
+  }
+
+  // music: a 36 second loop in D minor. Slow pad chords, a low drone, and a detuned music box.
+  var LOOP = 36;
+  var CHORDS = [[50, 53, 57], [46, 50, 53], [43, 46, 50], [45, 49, 52]];
+  var MELODY = [[0.5, 74], [2, 69], [3.5, 77], [6, 76], [9.5, 74], [11, 77], [12.5, 70], [15, 69],
+    [18.5, 74], [20, 70], [21.5, 67], [24, 69], [27.5, 73], [29, 76], [30.5, 69], [33, 68]];
+  function hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+  function scheduleMusic(t0) {
+    var drone = actx.createOscillator(), dg = actx.createGain(); drone.frequency.value = hz(38);
+    dg.gain.setValueAtTime(0, t0); dg.gain.linearRampToValueAtTime(0.18, t0 + 4); dg.gain.setValueAtTime(0.18, t0 + LOOP - 2); dg.gain.linearRampToValueAtTime(0, t0 + LOOP + 2);
+    drone.connect(dg); dg.connect(music); drone.start(t0); drone.stop(t0 + LOOP + 2.1);
+    CHORDS.forEach(function (ch, i) {
+      var t = t0 + i * 9, lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 800; lp.connect(music);
+      var gn = actx.createGain(); gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(0.08, t + 3); gn.gain.setValueAtTime(0.08, t + 8); gn.gain.linearRampToValueAtTime(0, t + 11);
+      gn.connect(lp);
+      ch.forEach(function (m) { [-7, 7].forEach(function (det) {
+        var o = actx.createOscillator(); o.type = 'triangle'; o.frequency.value = hz(m); o.detune.value = det;
+        o.connect(gn); o.start(t); o.stop(t + 11.1);
+      }); });
+    });
+    MELODY.forEach(function (n) {
+      var t = t0 + n[0], f = hz(n[1]), gn = actx.createGain();
+      gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(0.12, t + 0.01); gn.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
+      var wob = actx.createOscillator(), wg = actx.createGain(); wob.frequency.value = 4; wg.gain.value = f * 0.004; wob.connect(wg);
+      [[1, 1], [2, 0.25], [3, 0.08]].forEach(function (pt) {
+        var o = actx.createOscillator(); o.frequency.value = f * pt[0]; o.detune.value = -12;
+        wg.connect(o.frequency);
+        var pg = actx.createGain(); pg.gain.value = pt[1]; o.connect(pg); pg.connect(gn); o.start(t); o.stop(t + 2.5);
+      });
+      wob.start(t); wob.stop(t + 2.5);
+      gn.connect(music);
+      var send = actx.createGain(); send.gain.value = 0.5; gn.connect(send); send.connect(verb);
+    });
+  }
+
+  // the rolling cast: once a second, see what the woods do
+  setInterval(function () {
+    var now = Date.now();
+    if (now > wind.until) wind.target = 0;
+    if (!wind.target && Math.random() < 1 / 18) { wind.target = 0.5 + Math.random() * 0.5; wind.until = now + 4000 + Math.random() * 5000; }
+    if (!soundOn || !actx || actx.state !== 'running') return;
+    if (actx.currentTime > musicNext - 1) { scheduleMusic(Math.max(musicNext, actx.currentTime + 0.1)); musicNext = Math.max(musicNext, actx.currentTime + 0.1) + LOOP; }
+    if (!ev && Math.random() < 1 / 70) distantFootsteps();
+    if (Math.random() < 1 / 420) { var t = actx.currentTime + 0.2; childCall(t); if (Math.random() < 0.4) childCall(t + 3.5); }
+  }, 1000);
+  setInterval(function () { // ease the wind toward its target and let the wind bed follow
+    wind.level += (wind.target - wind.level) * 0.06;
+    if (actx && soundOn) {
+      windGain.gain.setTargetAtTime(0.03 + wind.level * 0.22, actx.currentTime, 0.3);
+      windFilter.frequency.setTargetAtTime(420 + wind.level * 700, actx.currentTime, 0.4);
+    }
+  }, 100);
+  window.FIRESIDE.sound = { child: function () { if (actx) childCall(actx.currentTime + 0.1); }, steps: function () { if (actx) distantFootsteps(); }, gust: function () { wind.target = 1; wind.until = Date.now() + 7000; } };
+
   var sb = document.getElementById('sound');
   sb.addEventListener('click', function () {
     soundOn = !soundOn;
