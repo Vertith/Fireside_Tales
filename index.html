@@ -692,46 +692,122 @@ body {
   // 3. A deer comes up by the fire, heads into the woods, looks back and changes.
   function stepDeer(e) {
     if (e.phase < 2 && e.t % 4 === 0) hoof(e.x);
-    if (e.phase === 4 && e.hold === 1) growl(e.x);
+    if (e.phase === 4 && e.hold === 6) growl(e.x);
     if (e.phase === 5 && e.t % 3 === 0) runStep(e.x);
-    if (e.phase === 0) { e.x -= 1; if (e.x <= 300) { e.phase = 1; e.sx = e.x; e.sy = e.y; e.k = 0; } }
-    else if (e.phase === 1) { e.k += 0.008; e.x = e.sx + (372 - e.sx) * e.k; e.y = e.sy + (176 - e.sy) * e.k; if (e.k >= 1) { e.phase = 2; e.hold = 0; } }
+    if (e.phase === 0) { e.x -= 0.9; if (e.x <= 300) { e.phase = 1; e.sx = e.x; e.sy = e.y; e.k = 0; } }
+    else if (e.phase === 1) { e.k += 0.008; e.x = e.sx + (372 - e.sx) * e.k; e.y = e.sy + (178 - e.sy) * e.k; if (e.k >= 1) { e.phase = 2; e.hold = 0; } }
     else if (e.phase === 2) { if (++e.hold > 14) { e.phase = 3; e.hold = 0; } }
-    else if (e.phase === 3) { if (++e.hold > 22) { e.phase = 4; e.hold = 0; } }
-    else if (e.phase === 4) { if (++e.hold > 12) { e.phase = 5; } }
-    else if (e.phase === 5) { e.x += 3.2; if (e.x > 500) endEvent(); }
+    else if (e.phase === 3) { if (++e.hold > 24) { e.phase = 4; e.hold = 0; } }
+    else if (e.phase === 4) { if (++e.hold > MORPH_TICKS + 6) { e.phase = 5; } }
+    else if (e.phase === 5) { e.x += 3.4; if (e.x > 510) endEvent(); }
   }
+  var MORPH_TICKS = 34;
+  function ease(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
   function drawDeerEvent(e) {
-    var x = Math.round(e.x), y = Math.round(e.y), walking = e.phase < 2, frame = walking ? Math.floor(e.t / 4) % 2 : 0;
-    if (e.phase === 4) {
-      var j = e.hold % 2 ? 1 : 0;
-      if (e.hold % 3 === 2) drawCreature(x + j, y, 1, 0); else drawDeer(x - j, y, 1, 0, true);
-    } else if (e.phase === 5) drawCreature(x, y, 1, Math.floor(e.t / 2) % 2);
-    else drawDeer(x, y, e.phase === 0 ? -1 : 1, frame, e.phase === 3);
+    var p = e.phase, morph = 0, look = 0, gait = 'still';
+    if (p < 2) gait = 'walk';
+    if (p === 3) look = Math.min(1, e.hold / 6);
+    if (p === 4) { look = 1; morph = ease(Math.min(1, e.hold / MORPH_TICKS)); }
+    if (p === 5) { morph = 1; look = 0; gait = 'run'; }
+    drawBeast(Math.round(e.x), Math.round(e.y), p === 0 ? -1 : 1, morph, look, gait, e.t);
   }
-  function mirror(x, y, f) { return function (dx, dy, w, h, c) { rect(g, f === 1 ? x + dx : x - dx - w + 1, y + dy, w, h, c); }; }
-  function drawDeer(x, y, f, frame, look) {
-    var R = mirror(x, y, f);
-    [-6, -4, 3, 5].forEach(function (lx, i) { var o = frame ? (i % 2 ? 1 : -1) : 0; R(lx + o, -6, 1, 5, C.brown1); R(lx + o, -1, 1, 1, C.night0); });
-    R(-6, -12, 10, 1, C.brown2); R(-7, -11, 13, 4, C.brown2); R(-7, -7, 13, 1, C.brown1);
-    R(-8, -12, 1, 2, C.paper);
-    R(4, -15, 2, 4, C.brown2);
-    if (look) {
-      R(3, -18, 4, 3, C.brown2); R(2, -19, 1, 1, C.brown1); R(7, -19, 1, 1, C.brown1); R(4, -15, 2, 1, C.brown1);
-      R(3, -17, 1, 1, C.lamp4); R(6, -17, 1, 1, C.lamp4);
-    } else {
-      R(5, -17, 3, 2, C.brown2); R(8, -16, 2, 1, C.brown1); R(5, -18, 1, 1, C.brown1); R(7, -17, 1, 1, C.night0);
+
+  // One jointed body that bends from a deer (m = 0) into the thing (m = 1).
+  // Points are [x, y] from the feet, facing right. Every joint moves smoothly between the two poses.
+  var DEER = {
+    haunch: [-9, -18], hip: [-8, -17], sh: [8, -18], chest: [9, -17], neck: [12, -26], head: [14, -29], snout: [19, -26], ear: [11, -33], tail: [-13, -21],
+    rKnee: [-7, -11], rHock: [-11, -6], rFoot: [-10, 0], fElbow: [8, -11], fKnee: [8, -6], fFoot: [8, 0],
+    aL: [13, -31], aLt: [13, -31], aLb: [13, -31], aLbt: [13, -31], aR: [15, -31], aRt: [15, -31], aRb: [15, -31], aRbt: [15, -31]
+  };
+  var THING = {
+    haunch: [-1, -19], hip: [-1, -19], sh: [2, -33], chest: [3, -30], neck: [4, -37], head: [5, -39], snout: [10, -37], ear: [2, -42], tail: [-3, -18],
+    rKnee: [3, -11], rHock: [-2, -5], rFoot: [1, 0], fElbow: [5, -26], fKnee: [7, -19], fFoot: [8, -16],
+    aL: [3, -42], aLt: [-2, -52], aLb: [0, -47], aLbt: [-5, -49], aR: [7, -42], aRt: [12, -52], aRb: [10, -47], aRbt: [15, -49]
+  };
+  // each part steps deer -> halfway -> thing; pixels only dither briefly at each step
+  var BEAST_COL = {
+    far: [C.brown1, C.brown0, C.night0], body: [C.brown2, C.brown1, C.brown0], line: [C.brown0, C.brown0, C.night0],
+    lit: [C.wood3, C.brown2, C.brown1], belly: [C.paperShade, C.brown1, C.brown0], tail: [C.paper, C.brown1, C.brown0],
+    hoof: [C.night0, C.night0, C.paperShade], antler: [C.paperShade, C.paperShade, C.paperShade]
+  };
+  var BW = 90, BH = 70, BOX = 44, BOY = 64, bmap = new Uint8Array(BW * BH);
+  function drawBeast(X, Y, f, m, look, gait, t) {
+    function P(k) { return [DEER[k][0] + (THING[k][0] - DEER[k][0]) * m, DEER[k][1] + (THING[k][1] - DEER[k][1]) * m]; }
+    function add(a, dx, dy) { return [a[0] + dx, a[1] + dy]; }
+    bmap.fill(0);
+    function disc(x, y, r, id) {
+      for (var yy = Math.floor(y - r); yy <= Math.ceil(y + r); yy++) for (var xx = Math.floor(x - r); xx <= Math.ceil(x + r); xx++) {
+        if ((xx - x) * (xx - x) + (yy - y) * (yy - y) > r * r + 0.3) continue;
+        var gx = xx + BOX, gy = yy + BOY; if (gx >= 0 && gx < BW && gy >= 0 && gy < BH) bmap[gy * BW + gx] = id;
+      }
     }
-  }
-  function drawCreature(x, y, f, frame) {
-    var R = mirror(x, y, f);
-    if (frame) { R(-3, -8, 1, 4, C.night0); R(-4, -4, 1, 4, C.night0); R(2, -8, 1, 4, C.night0); R(3, -4, 1, 4, C.night0); }
-    else { R(-1, -8, 1, 8, C.night0); R(1, -8, 1, 8, C.night0); }
-    R(-2, -16, 5, 8, C.brown0); R(-1, -15, 3, 4, C.brown1);
-    R(-3, -15, 1, 9, C.brown0); R(3, -15, 1, 8, C.brown0);
-    R(-1, -20, 4, 4, C.brown0); R(3, -19, 1, 2, C.brown0); R(2, -19, 1, 1, C.lamp4);
-    R(-1, -24, 1, 4, C.paperShade); R(-2, -25, 1, 1, C.paperShade); R(0, -26, 1, 2, C.paperShade);
-    R(2, -24, 1, 4, C.paperShade); R(3, -25, 1, 1, C.paperShade); R(1, -26, 1, 1, C.paperShade);
+    function seg(a, b, r0, r1, id) {
+      var n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) * 2));
+      for (var i = 0; i <= n; i++) { var k = i / n; disc(a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, r0 + (r1 - r0) * k, id); }
+    }
+    function lerp(a, b) { return a + (b - a) * m; }
+    // gait: legs swing (and arms, once it stands)
+    var ph = t * (gait === 'run' ? 0.9 : 0.45), sw = gait === 'walk' ? 2 : gait === 'run' ? 5 : 0;
+    var s1 = Math.sin(ph) * sw, s2 = -s1, lift1 = gait === 'run' ? Math.max(0, Math.cos(ph)) * 3 : 0, lift2 = gait === 'run' ? Math.max(0, -Math.cos(ph)) * 3 : 0;
+    var lean = gait === 'run' ? 3 : 0;
+    var hip = P('hip'), sh = add(P('sh'), lean, 0), chest = add(P('chest'), lean, 0), neck = add(P('neck'), lean, 0), head = add(P('head'), lean, 0);
+    // a deer looking back turns its head toward us: the snout shortens and both eyes show
+    var snout = add(P('snout'), lean, 0); snout = [snout[0] + (head[0] - snout[0]) * look * 0.8, snout[1] + (head[1] + 2 - snout[1]) * look * 0.8];
+    function rearLeg(sw, lift, back, id) {
+      var k = add(P('rKnee'), sw * 0.4 - back, -lift * 0.5), h = add(P('rHock'), sw * 0.7 - back, -lift), ft = add(P('rFoot'), sw - back, -lift);
+      seg(hip, k, lerp(2.6, 2.4), lerp(1.4, 1.8), id); seg(k, h, lerp(1.1, 1.5), lerp(0.8, 1.1), id); seg(h, ft, lerp(0.7, 1), 0.6, id);
+      disc(ft[0], ft[1] - 0.3, 0.9, 9);
+    }
+    function frontLeg(sw, lift, back, id) {
+      var swA = sw * (1 - m * 0.4);
+      var e = add(P('fElbow'), swA * 0.4 - back, -lift * 0.4), kk = add(P('fKnee'), swA * 0.8 - back, -lift * 0.8), ft = add(P('fFoot'), swA - back, -lift);
+      seg(add(sh, -back, 1), e, lerp(2.2, 1.8), lerp(1.2, 1.4), id); seg(e, kk, lerp(0.9, 1.2), lerp(0.8, 1), id); seg(kk, ft, lerp(0.7, 0.9), 0.6, id);
+      disc(ft[0], ft[1] - 0.3, 0.9, 9);
+      if (m > 0.5) { disc(ft[0] + 1, ft[1] + 1, 0.6, 9); }
+    }
+    // far side first
+    rearLeg(s2, lift2, lerp(-3, 3), 1); frontLeg(s2, lift2, lerp(-3, 4), 1);
+    var tail = P('tail'); disc(tail[0], tail[1], lerp(1.6, 0.8), 8);
+    var haunch = P('haunch');
+    seg(hip, chest, lerp(4.6, 3.4), lerp(4.4, 3.8), 2); disc(haunch[0], haunch[1], lerp(5, 3.8), 2); disc(chest[0], chest[1], lerp(4.6, 4.2), 2);
+    rearLeg(s1, lift1, 0, 3); frontLeg(s1, lift1, 0, 3);
+    seg(chest, neck, lerp(2.6, 2.4), lerp(2, 2.2), 4); disc(head[0], head[1], lerp(2.6, 3), 4); seg(head, snout, lerp(2, 2.4), lerp(1.3, 1.6), 4);
+    var ear = add(P('ear'), lean, 0); seg(add(head, -1, -1), ear, 1, 0.6, 4);
+    if (m > 0.08) {
+      var ar = Math.min(1, m * 1.4) * 0.8;
+      [['aL', 'aLt', 'aLb', 'aLbt'], ['aR', 'aRt', 'aRb', 'aRbt']].forEach(function (k) {
+        seg(add(P(k[0]), lean, 0), add(P(k[1]), lean, 0), ar, ar * 0.7, 5); seg(add(P(k[2]), lean, 0), add(P(k[3]), lean, 0), ar * 0.8, ar * 0.6, 5);
+      });
+    }
+    // colour: each pixel picks the deer or the thing palette by a dither threshold, so the coat darkens smoothly
+    var fireSide = X > FX ? -1 : 1; // the screen side the firelight comes from (-1 = left)
+    for (var gy = 0; gy < BH; gy++) for (var gx = 0; gx < BW; gx++) {
+      var id = bmap[gy * BW + gx]; if (!id) continue;
+      var sx = X + f * (gx - BOX), sy = Y + gy - BOY;
+      var step = m >= 0.98 ? 2 : Math.max(0, Math.min(2, Math.floor(m * 2 + (bayer(sx, sy) - 0.5) * 0.35 + 0.0001)));
+      var pal = {}; for (var key in BEAST_COL) pal[key] = BEAST_COL[key][step];
+      pal.head = pal.body;
+      var up = gy > 0 ? bmap[(gy - 1) * BW + gx] : 0, dn = gy < BH - 1 ? bmap[(gy + 1) * BW + gx] : 0;
+      var lt = gx > 0 ? bmap[gy * BW + gx - 1] : 0, rt = gx < BW - 1 ? bmap[gy * BW + gx + 1] : 0;
+      var towardFire = (f * fireSide) < 0 ? lt : rt;  // neighbour on the fire side, in rig space
+      var col;
+      if (id === 5) col = pal.antler;
+      else if (id === 9) col = pal.hoof;
+      else if (id === 8) col = pal.tail;
+      else if (id === 1) col = (!up || !dn) ? pal.line : pal.far;
+      else {
+        col = id === 4 ? pal.head : pal.body;
+        if (!towardFire && up) col = pal.lit;
+        else if (!up || !dn || !lt || !rt) col = pal.line;
+        else if (id === 2 && bmap[(gy + 2) * BW + gx] === 0) col = pal.belly;
+      }
+      px(g, sx, sy, col);
+    }
+    // eyes
+    var eyeCol = look > 0.5 || m > 0.2 ? C.lamp4 : C.night0;
+    var ex = head[0] + 1 - look * 1.5, ey = head[1] - 1;
+    px(g, X + f * Math.round(ex), Y + Math.round(ey), eyeCol);
+    if (look > 0.5 && m < 0.6) px(g, X + f * Math.round(ex + 2), Y + Math.round(ey), eyeCol);
   }
 
   // 4. Glowing eyes in a dark patch of trees, a blink, then nothing.
