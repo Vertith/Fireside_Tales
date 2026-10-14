@@ -2344,7 +2344,14 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
     if (step.desk) { this.skipping = false; return this.desk(step.desk, gen); }
     if (step.returns) return this.returns(gen);
     if (step.comeBack) { this.comeBack(step.comeBack, 'new'); return null; }
-    if (step.radio) { if (E.radio) { if (step.radio === 'off') E.radio.off(); else if (!E.radio.isOn()) E.radio.on(); } return null; }
+    if (step.radio) { if (E.radio) { if (step.radio === 'off') E.radio.off(); else if (step.radio === 'calm') {
+      // turn the dial on to the next music station, never landing on static, news or Morse
+      var st = E.radio.stations, at = E.radio.state().index;
+      for (var k = 1; k <= st.length; k++) {
+        var j = (at + k) % st.length;
+        if (['jazz', 'bigband', 'blues'].indexOf(st[j].id) >= 0) { E.radio.tune(j); break; }
+      }
+    } else if (!E.radio.isOn()) E.radio.on(); } return null; }
     if (step.show) { await ui.show(step.show); return null; }
     if ('actNo' in step) { this.run.actNo = step.actNo; return null; }
     if (step.act) { if (!fast) await ui.actCard(step.act, step.title || ''); return null; }
@@ -9849,8 +9856,14 @@ window.EMIT.content.visitorList = [
   var NIGHT = [
     // after the Act One card the guard settles in, and the player finds the radio
     { act: 'Act One', title: 'The night shift', after: [
-      { narrate: 'My hands hadn\'t stopped shaking. I flipped on the radio to calm my nerves.' },
-      { radio: 'on' },
+      // if the player already has the radio playing, Lou turns the dial instead of switching it on
+      { 'if': function () { return !!(E.radio && E.radio.isOn()); }, then: [
+        { narrate: 'My hands hadn\'t stopped shaking. I changed the channel, looking for something to calm my nerves.' },
+        { radio: 'calm' }
+      ], 'else': [
+        { narrate: 'My hands hadn\'t stopped shaking. I flipped on the radio to calm my nerves.' },
+        { radio: 'on' }
+      ] },
       { pause: 900 },
       { narrate: 'Six stations if you kept turning the dial. Tonight I had a feeling I\'d need all of them.' }
     ] },

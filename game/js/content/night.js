@@ -14,8 +14,14 @@
   var NIGHT = [
     // after the Act One card the guard settles in, and the player finds the radio
     { act: 'Act One', title: 'The night shift', after: [
-      { narrate: 'My hands hadn\'t stopped shaking. I flipped on the radio to calm my nerves.' },
-      { radio: 'on' },
+      // if the player already has the radio playing, Lou turns the dial instead of switching it on
+      { 'if': function () { return !!(E.radio && E.radio.isOn()); }, then: [
+        { narrate: 'My hands hadn\'t stopped shaking. I changed the channel, looking for something to calm my nerves.' },
+        { radio: 'calm' }
+      ], 'else': [
+        { narrate: 'My hands hadn\'t stopped shaking. I flipped on the radio to calm my nerves.' },
+        { radio: 'on' }
+      ] },
       { pause: 900 },
       { narrate: 'Six stations if you kept turning the dial. Tonight I had a feeling I\'d need all of them.' }
     ] },

@@ -219,7 +219,14 @@
     if (step.desk) { this.skipping = false; return this.desk(step.desk, gen); }
     if (step.returns) return this.returns(gen);
     if (step.comeBack) { this.comeBack(step.comeBack, 'new'); return null; }
-    if (step.radio) { if (E.radio) { if (step.radio === 'off') E.radio.off(); else if (!E.radio.isOn()) E.radio.on(); } return null; }
+    if (step.radio) { if (E.radio) { if (step.radio === 'off') E.radio.off(); else if (step.radio === 'calm') {
+      // turn the dial on to the next music station, never landing on static, news or Morse
+      var st = E.radio.stations, at = E.radio.state().index;
+      for (var k = 1; k <= st.length; k++) {
+        var j = (at + k) % st.length;
+        if (['jazz', 'bigband', 'blues'].indexOf(st[j].id) >= 0) { E.radio.tune(j); break; }
+      }
+    } else if (!E.radio.isOn()) E.radio.on(); } return null; }
     if (step.show) { await ui.show(step.show); return null; }
     if ('actNo' in step) { this.run.actNo = step.actNo; return null; }
     if (step.act) { if (!fast) await ui.actCard(step.act, step.title || ''); return null; }
