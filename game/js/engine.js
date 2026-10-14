@@ -239,12 +239,13 @@
     var heardBefore = !!first && first < this.memory.loop && !step.noSkip;
     if (!first) { this.memory.heard[key] = this.memory.loop; this.save(); }
 
-    if (this.skipping && heardBefore) {
+    // Skip runs straight on to the next decision (a question pad or the desk),
+    // so nobody has to click Next again on the way there
+    if (this.skipping) {
       // keep the box showing where we are, so the next choice has context
       this.ui.setLine(who, text, (who ? 'speech' : 'narration') + ' done');
       return null;
     }
-    this.skipping = false;
 
     var res = await this.ui.showLine({ who: who, text: text, heardBefore: heardBefore });
     this.check(gen);
@@ -292,13 +293,22 @@
             text: o.text,
             heard: !!self.memory.asked[k] && self.memory.asked[k] < self.memory.loop,
             memory: !!o.requires && !o.requires.toString().match(/^(!|run:)/),
-            exit: !!o.exit
+            exit: !!o.exit,
+            // an option with an action is a desk decision: it shows as a stamp, not a line to say
+            action: o.action || null,
+            stamp: o.action ? (o.stamp || STAMPS[o.action]) : null,
+            label: o.action ? (o.label || ACTION_LABELS[o.action]) : null
           };
         })
       });
       this.check(gen);
       var opt = opts[pick];
       chosen[opt._i] = true;
+      if (opt.action) {
+        this.ui.setTranscript('', '');
+        this.run.heading = opt.action === 'letThrough' ? 'in' : 'out';
+        this.run.shooting = opt.action === 'shoot';
+      }
       var askKey = ctx + '.ask.' + opt._i;
       if (!this.memory.asked[askKey]) { this.memory.asked[askKey] = this.memory.loop; this.save(); }
       var r = await this.runSteps(opt.steps || [], askKey, gen);

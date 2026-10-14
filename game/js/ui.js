@@ -335,7 +335,9 @@
 
     /** Used when lines are skipped, so the screen still shows where you are. */
     setLine: function (who, text) {
-      if (who) this.setTranscript(who, text, true); else this.setNarr(text);
+      $('controls').hidden = true; // nothing to click while skipping through
+      if (who) { this.setNarr(''); this.setTranscript(who, text, true); }
+      else { this.setTranscript('', ''); this.setNarr(text); }
     },
 
     showLine: function (opts) {
@@ -346,11 +348,14 @@
       $('controls').hidden = false;
       $('btn-skip').hidden = !opts.heardBefore;
       var target, text = opts.text;
+      // only the newest line is on screen, so it's always clear what to read
       if (opts.who) {
+        this.setNarr('');
         this.setTranscript(opts.who, '');
         target = $('line');
         $('ui').dataset.active = 'speech';
       } else {
+        this.setTranscript('', '');
         target = $('narr');
         $('ui').dataset.active = 'narr';
       }
@@ -423,8 +428,22 @@
       this.turn(spec.prompt);
       $('actions').hidden = true;
       $('pad-title').textContent = 'Say';
+      var says = [], acts = [];
+      spec.options.forEach(function (o, i) { (o.action ? acts : says).push({ o: o, i: i }); });
       return new Promise(function (resolve) {
-        self.renderQuestions(spec.options, function (i) { self.mode = null; $('pad').hidden = true; resolve(i); });
+        function pick(i) { self.mode = null; $('pad').hidden = true; $('actions').hidden = true; resolve(i); }
+        self.renderQuestions(says.map(function (s) { return s.o; }), function (k) { pick(says[k].i); });
+        if (acts.length) {
+          $('actions').hidden = false;
+          self.renderActions(acts.map(function (a) {
+            return { id: a.o.action, stamp: a.o.stamp, label: a.o.label, index: a.i };
+          }), function (v) {
+            if (v.id === 'shoot') self.drawerTimer2 = setTimeout(function () { self.setDrawer(false); }, 2600);
+            else self.setDrawer(false);
+            var hit = acts.filter(function (a) { return a.o.action === v.id; })[0];
+            pick(hit.i);
+          });
+        }
         self.focusFirst();
       });
     },

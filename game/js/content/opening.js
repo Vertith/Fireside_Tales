@@ -92,8 +92,18 @@
           { who: 'scientist', say: 'You\'re always here.' },
           { note: ['scientist', 'Asked why me. "You\'re always here." I\'ve only met him tonight.'] }
         ] },
-        { text: 'Understood.', exit: true, steps: [
+        // the decision is made at the desk, with stamps, like every other visitor
+        { text: 'Understood.', action: 'letThrough', stamp: 'Let him go', label: 'Let him go back up', exit: true, steps: [
           { who: 'scientist', say: 'Good. And clean that up, would you? I have work to finish.' }
+        ] },
+        { text: 'Shoot him.', action: 'shoot', exit: true, steps: [
+          { sfx: 'gunshot' },
+          { exit: 'fall' },
+          { narrate: 'Two bodies on my lobby floor, and one of them had signed my paycheck.' },
+          { narrate: 'The police came at two. Nobody believes a night guard who shoots a scientist for being excited.' },
+          { note: ['scientist', 'Shot Kane after the man in plates. Nobody believed a word of it.'] },
+          { learn: 'shotKane' },
+          { reset: 'You shot the scientist with nothing to show for it.' }
         ] }
       ]
     } },
