@@ -252,7 +252,7 @@
     closeUp: function (zoom, title, text) {
       var z = $('zoom-art').getContext('2d');
       z.imageSmoothingEnabled = false;
-      z.clearRect(0, 0, 32, 24);
+      z.clearRect(0, 0, 64, 48);
       if (E.art.zooms[zoom]) E.art.zooms[zoom](z);
       $('zoom-title').textContent = title || '';
       $('zoom-text').textContent = text || '';

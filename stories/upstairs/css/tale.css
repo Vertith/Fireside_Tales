@@ -160,7 +160,7 @@ button { font: inherit; color: inherit; }
 .narrow #actions { display: grid; grid-template-columns: repeat(var(--n, 3), 1fr); gap: 6px; }
 .narrow .stamp { font-size: 10px; padding: 10px 4px; min-height: 44px; }
 .narrow #zoom { display: flex; gap: 10px; align-items: flex-start; background: var(--night1); border: 1px solid var(--lamp4); padding: 8px; cursor: pointer; }
-.narrow #zoom-art { width: 96px; height: 72px; flex: none; }
+.narrow #zoom-art { width: 128px; height: 96px; flex: none; }
 .narrow #zoom-title { font-size: 10px; margin-bottom: 4px; }
 .narrow #zoom > :not(canvas) { min-width: 0; }
 

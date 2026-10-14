@@ -409,6 +409,7 @@
     { who: 'realmom', say: 'You\'re freezing. Oh, bug. You\'re freezing.' },
     { narrate: 'We sat in the circle all night. Up in the house, things walked around and called our names. We didn\'t answer.' },
     { clock: '6:41 AM' },
+    { backdrop: 'dawn' },
     { narrate: 'Then the little window up by the furnace went grey, and then pink. Upstairs went quiet.' },
     { if: 'run:called', then: [
       { narrate: 'Red and blue lights came up the driveway. A deputy knocked and said his own name, and he was soaking wet.' }
@@ -420,7 +421,7 @@
     { vanish: true },
     { narrate: 'I unlocked the door. He scooped me up, rain and all, and ran me down the steps to his car.' },
     { who: 'deputy', say: 'Stay here. Lock the doors. I\'m going back in for your folks.' },
-    { backdrop: 'black' },
+    { backdrop: 'car' },
     { narrate: 'I watched him go in. I watched the windows. Up in my room, somebody stood at the glass and waved. With the wrong hand.' },
     { clock: '9:15 AM' },
     { narrate: 'They searched all morning. More cars came. A dog came.' },

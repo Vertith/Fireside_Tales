@@ -71,7 +71,7 @@
       { id: 'eyes', title: 'Her eyes', zoom: 'momEyes', x: 228, y: 54, w: 24, h: 12,
         text: 'She didn\'t blink. Once, the dark in them went a kind of purple.',
         note: 'Her eyes went purple for a second.' },
-      { id: 'clock', title: 'The clock', zoom: 'clock', x: 330, y: 100, w: 22, h: 12,
+      { id: 'clock', title: 'The clock', zoom: 'clock', x: 356, y: 88, w: 28, h: 16,
         text: 'Their clock was blinking 12:00. The power must have gone off.',
         note: 'The clocks are all blinking. The power went off.' }
     ],
@@ -125,16 +125,16 @@
       ] }
     ],
     inspect: [
-      { id: 'watch', title: 'His watch', zoom: 'watchWrong', x: 196, y: 110, w: 20, h: 12,
+      { id: 'watch', title: 'His watch', zoom: 'watchWrong', x: 190, y: 104, w: 20, h: 14,
         text: 'Dad\'s watch. On his right arm. Dad wears it on his left, always, the side he taps it on.',
         note: 'His watch is on his right wrist. Dad\'s is on his left.', learn: 'mirrorWrong' },
       { id: 'glasses', title: 'His glasses', zoom: 'glasses', x: 226, y: 48, w: 28, h: 12,
         text: 'The TV should have been shining in his glasses. They were just dark.',
         note: 'Nothing shines in his glasses.' },
-      { id: 'remote', title: 'His other hand', zoom: 'remote', x: 264, y: 110, w: 20, h: 12,
+      { id: 'remote', title: 'His other hand', zoom: 'remote', x: 268, y: 106, w: 22, h: 14,
         text: 'The remote, with the batteries out. Dad keeps them in with tape.',
         note: 'He\'s holding the remote. No batteries in it.' },
-      { id: 'bottle', title: 'The floor', zoom: 'bottle', x: 288, y: 136, w: 14, h: 22,
+      { id: 'bottle', title: 'The floor', zoom: 'bottle', x: 302, y: 148, w: 30, h: 14,
         text: 'His bottle of root beer, tipped over. It hadn\'t spilled. It was empty and dry.',
         note: 'His root beer bottle is empty and dry.' }
     ],
@@ -178,7 +178,7 @@
         text: 'No tongue hanging out. Biscuit\'s tongue is always out.', note: 'His mouth was shut tight.' },
       { id: 'paws', title: 'His paws', zoom: 'paws', x: 220, y: 146, w: 50, h: 14,
         text: 'Muddy paws. Biscuit gets muddy every day.', note: 'Muddy paws, like always.' },
-      { id: 'bowl', title: 'The bowl', zoom: 'bowl', x: 156, y: 148, w: 30, h: 14,
+      { id: 'bowl', title: 'The bowl', zoom: 'bowl', x: 152, y: 146, w: 46, h: 14,
         text: 'His bowl. Licked clean. It had been clean all night.', note: 'He eats out of an empty bowl.' }
     ],
     actions: {
@@ -272,10 +272,10 @@
       { id: 'glasses', title: 'Her glasses', zoom: 'chain', x: 228, y: 56, w: 24, h: 12,
         text: 'Her reading glasses on the chain. The little beads on the chain were stopped mid-swing.',
         note: 'The beads on her glasses chain don\'t swing.' },
-      { id: 'feet', title: 'Her feet', zoom: 'bareFeet', x: 220, y: 146, w: 40, h: 16,
+      { id: 'feet', title: 'Her feet', zoom: 'bareFeet', x: 214, y: 144, w: 52, h: 16,
         text: 'Bare feet on the wet step. Mrs. Albright has bad feet. She wears her big slippers even in summer.',
         note: 'She was barefoot. Mrs. Albright never goes barefoot.' },
-      { id: 'house', title: 'Behind her', zoom: 'darkHouse', x: 296, y: 34, w: 40, h: 40,
+      { id: 'house', title: 'Behind her', zoom: 'darkHouse', x: 262, y: 14, w: 38, h: 50,
         text: 'Her house, across the yard. All dark. Her TV is always on. She sleeps with it on.',
         note: 'Her house was totally dark. She always has her TV on.' }
     ],
@@ -330,7 +330,7 @@
       { id: 'hat', title: 'His hat', zoom: 'hatDry', x: 220, y: 28, w: 40, h: 16,
         text: 'It was raining hard. His hat was completely dry.', note: 'It was pouring, and his hat was dry.' },
       { id: 'radio', title: 'His radio', zoom: 'radio', x: 197, y: 106, w: 12, h: 18,
-        text: 'The radio on his belt. It never made a sound. On TV they always crackle.', note: 'His radio never made a sound.' },
+        text: 'The radio on his shoulder. It never made a sound. On TV they always crackle.', note: 'His radio never made a sound.' },
       { id: 'eyes', title: 'His eyes', zoom: 'copEyes', x: 228, y: 52, w: 24, h: 10,
         text: 'Under the hat brim, two little purple lights, like the ones on the VCR.', note: 'His eyes glowed purple under the hat.' }
     ],
