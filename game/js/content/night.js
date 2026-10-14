@@ -67,6 +67,16 @@
     'Another one for the supply closet. The mop knew the way by now.'
   ];
 
+  // act numbers, for the notebook: every slot knows which act it belongs to
+  var actNo = 0, ACT_OF = {}, ACTS = [];
+  NIGHT.forEach(function (n) {
+    if (n.act) { actNo++; ACTS.push({ no: actNo, name: n.act, title: n.title }); }
+    n.actNo = Math.max(1, actNo);
+    if (n.id && !(n.id in ACT_OF)) ACT_OF[n.id] = n.actNo;
+  });
+  E.content.acts = ACTS;
+  E.content.actOf = ACT_OF;
+
   var hasDevice = false;
   var scenes = [];
   NIGHT.forEach(function (n, i) {
@@ -83,6 +93,7 @@
 
     // keep the desk tools consistent when a scene is started directly (debug, tests)
     steps.push({ set: 'hasList' });
+    steps.push({ actNo: n.actNo });
     if (sc.device) steps.push({ set: 'hasDevice' });
 
     if (n.act) {

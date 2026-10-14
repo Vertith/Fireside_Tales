@@ -126,7 +126,7 @@
   V.pizza = {
     id: 'pizza',
     truth: 'legit',
-    prompt: 'The box is still warm. The kid is not thrilled about the rain.',
+    prompt: 'He holds the box level, like his tip depends on it. The kid is not thrilled about the rain.',
     greeting: [
       { who: 'pizza', say: 'Large pepperoni, extra garlic, for, uh...' },
       { who: 'pizza', say: 'Halvorsen? Lab two? Night crew. They paid on the phone, I just need a signature.' }
@@ -182,6 +182,25 @@
         { who: 'pizza', say: 'Boss makes us carry the pager. It never stops.' },
         { narrate: 'A pager. About as ordinary as it gets. I relaxed a little.' },
         { note: ['pizza', 'Carries a work pager that won\'t stop beeping.'] }
+      ] },
+      { id: 'call', ask: 'Let me call Halvorsen in Lab 2.', requires: '!run:turnedAway:pizza', steps: [
+        { narrate: 'I found LAB 2 in the Rolodex and dialled it from the desk phone. It rang five times.' },
+        { narrate: 'A tech who wasn\'t Halvorsen picked up, chewing something. Halvorsen was in the bathroom.' },
+        { narrate: 'Unavailable, he said, like it was a medical condition. Then he hung up before I could say pizza.' },
+        { who: 'pizza', say: 'So? Is he coming down or what? This thing\'s getting cold, man.' },
+        { set: 'calledHalvorsen' },
+        { note: ['pizza', 'Called Lab 2. Another tech said Halvorsen was in the bathroom. Couldn\'t confirm the order.'] }
+      ] },
+      { id: 'callBack', ask: 'Let me call Halvorsen in Lab 2.', requires: 'run:turnedAway:pizza', steps: [
+        { 'if': 'run:calledHalvorsen', then: [
+          { narrate: 'I dialled Lab 2 again. This time the man himself picked up on the first ring.' }
+        ], 'else': [
+          { narrate: 'I found LAB 2 in the Rolodex and dialled it. A man picked up on the first ring.' }
+        ] },
+        { narrate: '"Halvorsen." I said there was a pizza at the front desk with his name on it.' },
+        { narrate: 'Yes, he\'d ordered it. Large pepperoni, extra garlic, an hour ago. He hoped it wasn\'t cold.' },
+        { who: 'pizza', say: 'It\'s cold.' },
+        { note: ['pizza', 'Called Lab 2 again. Halvorsen picked up: he did order the pizza, and hoped it wasn\'t cold.'] }
       ] }
     ],
     actions: {
@@ -192,6 +211,7 @@
       ] },
       turnAway: { steps: [
         { narrate: 'I told him no deliveries after ten. He swore at me in a way that was very much of this decade.' },
+        { set: 'turnedAway:pizza' },
         { exit: 'walk' },
         { note: ['pizza', 'Turned him away. Lab 2 is going to be furious.'] }
       ] },
@@ -208,7 +228,11 @@
         { who: 'pizza', say: 'Is that a... are you scanning me? Dude.' },
         { note: ['pizza', 'Tried the device on him. Nothing. He thinks I\'m nuts.'] }
       ] }
-    }
+    },
+    returnGreeting: [
+      { who: 'pizza', say: 'Me again. Sal says no signature, no pay. And the pie comes out of my check.' },
+      { who: 'pizza', say: 'Lab two ordered it, man. Call up there if you don\'t believe me.' }
+    ]
   };
 
   /* ---------------- The obvious android (android) ---------------- */

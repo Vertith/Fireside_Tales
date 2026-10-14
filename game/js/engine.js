@@ -221,6 +221,7 @@
     if (step.comeBack) { this.comeBack(step.comeBack, 'new'); return null; }
     if (step.radio) { if (E.radio) { if (step.radio === 'off') E.radio.off(); else if (!E.radio.isOn()) E.radio.on(); } return null; }
     if (step.show) { await ui.show(step.show); return null; }
+    if ('actNo' in step) { this.run.actNo = step.actNo; return null; }
     if (step.act) { if (!fast) await ui.actCard(step.act, step.title || ''); return null; }
     if (step.goto) return { goto: step.goto };
     if (step.reset) return { reset: step.reset };
@@ -269,7 +270,7 @@
     for (var i = 0; i < this.memory.notebook.length; i++) {
       if (this.memory.notebook[i].id === id) return;
     }
-    this.memory.notebook.push({ id: id, who: who, text: text, loop: this.memory.loop });
+    this.memory.notebook.push({ id: id, who: who, text: text, loop: this.memory.loop, act: this.run.actNo || 1 });
     this.save();
     this.ui.noted(this, who);
   };

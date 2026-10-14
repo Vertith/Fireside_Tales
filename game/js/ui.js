@@ -77,6 +77,8 @@
         E.radio.onChange(function (st) {
           self.S.radio = { on: st.on, index: st.index };
           $('radio-text').textContent = st.on ? st.station.freq + ' ' + st.station.name : '';
+          // tuning in the shortwave Morse once is enough for the soldiers to be asked about it
+          if (st.on && st.station.id === 'morse' && self.game && self.game.run) self.game.learn('heardMorse');
         });
       }
       this.soundLabel(E.audio.isMuted());
@@ -210,6 +212,7 @@
       var S = this.S, self = this;
       $('hots').innerHTML = '';
       $('zoom').hidden = true;
+      if (kind === 'fall' && S.drawerOpen) { clearTimeout(this.drawerTimer2); this.setDrawer(false); E.audio.play('drawer'); }
       if (!S.visitor) return Promise.resolve();
       var p = kind === 'fall' ? this.move('y', 0, E.art.fallTo, fast ? 1 : 380) : this.move('x', 0, side === 'left' ? E.art.enterFrom : E.art.exitTo, fast ? 1 : 650);
       return p.then(function () { S.visitor = null; S.vx = 0; S.vy = 0; self.present = null; });
@@ -437,7 +440,10 @@
           self.deskDone = null;
           self.mode = null;
           // after a shot the drawer stays out a moment, then slides home
-          if (v && (v.id === 'shoot' || v.id === 'shutdown')) setTimeout(function () { self.setDrawer(false); }, 1800);
+          // the drawer slides home as the visitor goes down (see exit); a shot
+          // that drops nobody, or the device on a person, closes it shortly after
+          if (v && v.id === 'shoot') self.drawerTimer2 = setTimeout(function () { self.setDrawer(false); }, 2600);
+          else if (v && v.id === 'shutdown') self.drawerTimer2 = setTimeout(function () { self.setDrawer(false); }, 700);
           else self.setDrawer(false);
           $('pad').hidden = true; $('actions').hidden = true;
           resolve(v);
@@ -510,20 +516,33 @@
     noted: function () { $('nb-badge').hidden = false; },
 
     openNotebook: function () {
-      var g = this.game, notes = g.memory.notebook, groups = {}, order = [];
+      // notes are filed by act (anything before Act One counts as Act One), then by person
+      var g = this.game, notes = g.memory.notebook, latest = g.memory.loop;
+      var acts = E.content.acts && E.content.acts.length ? E.content.acts : [{ no: 1, name: 'Act One', title: '' }];
+      var actOf = E.content.actOf || {}, byAct = {};
       notes.forEach(function (n) {
-        if (!groups[n.who]) { groups[n.who] = []; order.push(n.who); }
-        groups[n.who].push(n);
+        var a = Math.min(acts.length, n.act || actOf[n.who] || 1);
+        var bucket = byAct[a] = byAct[a] || { groups: {}, order: [], count: 0, fresh: 0 };
+        if (!bucket.groups[n.who]) { bucket.groups[n.who] = []; bucket.order.push(n.who); }
+        bucket.groups[n.who].push(n); bucket.count++; if (n.loop === latest) bucket.fresh++;
       });
-      var latest = g.memory.loop;
-      var html = order.length ? '' : '<p class="empty-note">Nothing written down yet. Ask questions, and click on people in the window to look closer. The notebook keeps what you learn when the night starts over.</p>';
-      order.forEach(function (who) {
-        var c = E.content.characters[who];
-        html += '<h3>' + esc(c ? c.notebookName || c.name : who) + '</h3><ul>';
-        groups[who].forEach(function (n) {
-          html += '<li class="' + (n.loop === latest ? 'new' : '') + '"><span class="txt">' + esc(n.text) + '</span><span class="when">loop ' + n.loop + '</span></li>';
+      var here = Math.min(acts.length, (g.run && g.run.actNo) || 1);
+      var html = notes.length ? '' : '<p class="empty-note">Nothing written down yet. Ask questions, and click on people in the window to look closer. The notebook keeps what you learn when the night starts over.</p>';
+      acts.forEach(function (act) {
+        var b = byAct[act.no];
+        if (!b) return;
+        html += '<details class="act"' + (act.no === here ? ' open' : '') + '><summary><span class="act-name">' + esc(act.name) +
+          (act.title ? ' \u00b7 ' + esc(act.title) : '') + '</span><span class="act-count">' + b.count + ' note' + (b.count === 1 ? '' : 's') +
+          (b.fresh ? ', ' + b.fresh + ' new' : '') + '</span></summary>';
+        b.order.forEach(function (who) {
+          var c = E.content.characters[who];
+          html += '<h3>' + esc(c ? c.notebookName || c.name : who) + '</h3><ul>';
+          b.groups[who].forEach(function (n) {
+            html += '<li class="' + (n.loop === latest ? 'new' : '') + '"><span class="txt">' + esc(n.text) + '</span><span class="when">loop ' + n.loop + '</span></li>';
+          });
+          html += '</ul>';
         });
-        html += '</ul>';
+        html += '</details>';
       });
       $('notebook-body').innerHTML = html;
       $('nb-badge').hidden = true;

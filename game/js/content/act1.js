@@ -136,6 +136,12 @@
       { id: 'watch', ask: 'Does he wear a digital watch?', requires: 'sawWatch', steps: [
         { who: 'sister', say: 'Dusty? He wears Dad\'s old wind-up Timex. Says digital watches lie to you.' },
         { note: ['sister', 'Her brother wears their dad\'s old wind-up watch. The man upstairs wears a digital one.'] }
+      ] },
+      { id: 'callLab', ask: 'Let me try his lab phone anyway.', requires: 'run:callOffer:sister', steps: [
+        { narrate: 'I dialled Kane\'s lab on four from the desk phone. It rang six times, then the machine picked up.' },
+        { narrate: 'A dry recorded voice: Dr. Kane\'s laboratory, not taking calls. Leave a message at the tone.' },
+        { who: 'sister', say: 'See? Never. He\'d let that thing ring through the Second Coming.' },
+        { note: ['sister', 'Rang Kane\'s lab for her. The answering machine picked up. Nobody answered.'] }
       ] }
     ],
     actions: {
@@ -170,7 +176,8 @@
     returnGreeting: [
       { who: 'sister', say: 'Lou. Please. It\'s Mom. She fell, they took her to St. Agnes. They think it\'s her heart.' },
       { who: 'sister', say: 'He doesn\'t answer the lab phone, he never does. I have to tell him myself. Please.' },
-      { note: ['sister', 'She came back: their mother is in St. Agnes, maybe her heart. She needs to tell her brother in person.'] }
+      { note: ['sister', 'She came back: their mother is in St. Agnes, maybe her heart. She needs to tell her brother in person.'] },
+      { set: 'callOffer:sister' }
     ],
     secondTurnAway: { steps: [
       { narrate: 'I told her no again. She stood there and dripped on my floor, and then she went.' },

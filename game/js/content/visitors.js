@@ -107,6 +107,12 @@
         { narrate: 'A woman. If I\'d ever called my mother "a woman" to her face, I\'d have been smacked into next week.' },
         { note: ['scientist', 'Cake on his sleeve. Says he "bumped into a woman with a cake".'] }
       ] },
+      { id: 'morse', ask: 'There\'s Morse code on the shortwave. Know anything about it?', requires: 'morseDecoded', steps: [
+        { who: 'scientist', say: 'Morse code.' },
+        { who: 'scientist', say: 'Whatever it is, it isn\'t as important as the guests tonight.' },
+        { narrate: 'He said it like a man brushing lint off a coat. He didn\'t ask what it said.' },
+        { note: ['scientist', 'Asked him about the Morse on the shortwave. Brushed it off: not as important as tonight\'s guests. Never asked what it said.'] }
+      ] },
       { id: 'guess', ask: 'Let me guess. Someone\'s going to come to stop you.', requires: 'heardBriefing', steps: [
         { who: 'scientist', say: '...' },
         { who: 'scientist', say: 'How would you...' },

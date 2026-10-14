@@ -79,6 +79,14 @@
       ]
     },
     questions: [
+      { id: 'morse', ask: 'There\'s Morse on my radio, Colonel. Know what it is?', requires: 'now:heardMorse', steps: [
+        { narrate: 'He listened for four seconds. His jaw did something.' },
+        { who: 'liaison', say: 'Prisoner escaped. Repeating.' },
+        { who: 'liaison', say: 'That\'s not a ham operator, son. That\'s a facility talking to someone who\'s meant to be listening.' },
+        { who: 'liaison', say: 'Turn it off. Or don\'t. Either way, you didn\'t hear it from me.' },
+        { note: ['liaison', 'Brandt decoded the shortwave Morse: PRISONER ESCAPED. Says it\'s a facility signalling someone.'] },
+        { learn: 'morseDecoded' }
+      ] },
       { id: 'list', ask: 'Let me check the list.', requires: 'saw:desk.list', steps: [
         { 'if': 'run:hasList', then: [
           { narrate: 'Lt. Col. D. Brandt, Defense liaison. Right there in Kane\'s hand.' },
@@ -216,7 +224,14 @@
         { who: 'hippie', say: 'My what?' },
         { who: 'hippie', say: 'Just ring the office. KLondike five, two-two-oh-seven. Ask for Skip.' },
         { narrate: 'Channel 7 had a fax number on her card. This one gave me a telephone exchange.' },
-        { note: ['hippie', 'Didn\'t know what email was. Gave me a phone number with an exchange name, KLondike 5.'] }
+        { note: ['hippie', 'Didn\'t know what email was. Gave me a phone number with an exchange name, KLondike 5.'] },
+        { set: 'callOffer:hippie' }
+      ] },
+      { id: 'callOffice', ask: 'I\'ll ring your office. Ask for Skip, you said.', requires: 'run:callOffer:hippie', steps: [
+        { narrate: 'I dialled KL5-2207 on the desk phone. The K and the L were a five and a five. I checked twice.' },
+        { narrate: 'Three rising tones, then a woman on tape: the number you have dialed is not in service.' },
+        { who: 'hippie', say: 'Huh. They must be on deadline, man. Nobody picks up on deadline.' },
+        { note: ['hippie', 'Rang his office, KLondike 5-2207. "The number you have dialed is not in service."'] }
       ] },
       { id: 'patch', ask: 'Nice patch. Vintage?', requires: 'saw:hippiePatch', steps: [
         { who: 'hippie', say: 'Vintage? Sewed it on last week. You into the movement?' },
@@ -336,7 +351,15 @@
       { id: 'cousin', ask: 'Your cousin isn\'t on my visitor list.', requires: 'saw:desk.list', steps: [
         { who: 'viking', say: 'She\'s not a visitor, man, she works here. Night crew, lab three. Short, glasses, laughs like a goose.' },
         { narrate: 'I flipped the Rolodex. HOLT, D. Lab 3. Night crew. Extension 3318.' },
-        { note: ['viking', 'His cousin isn\'t a visitor. Dana Holt is in the Rolodex: Lab 3, night crew, ext. 3318.'] }
+        { note: ['viking', 'His cousin isn\'t a visitor. Dana Holt is in the Rolodex: Lab 3, night crew, ext. 3318.'] },
+        { set: 'callOffer:viking' }
+      ] },
+      { id: 'callDana', ask: 'Let me ring Dana Holt in Lab 3.', requires: 'run:callOffer:viking', steps: [
+        { narrate: 'HOLT, D. in the Rolodex. Extension 3318. I dialled it from the desk phone.' },
+        { narrate: 'A man picked up with a lot of machinery behind him. Holt was in the clean room, gowned to the eyes.' },
+        { narrate: 'Nobody comes out of there to answer a phone, he said. He\'d leave her a note. He hung up.' },
+        { who: 'viking', say: 'Clean room. Yeah. She does that. Comes out looking like a marshmallow.' },
+        { note: ['viking', 'Rang Lab 3, ext. 3318. Dana Holt was in the clean room. Couldn\'t come to the phone.'] }
       ] }
     ],
     actions: {
@@ -367,7 +390,8 @@
     ],
     returnGreeting: [
       { who: 'viking', say: 'Okay. I\'m not Gunnar anymore. I\'m a cold guy named Greg who wants his car keys.' },
-      { who: 'viking', say: 'Please. Call Dana. Lab three. I\'ll stand right here and drip.' }
+      { who: 'viking', say: 'Please. Call Dana. Lab three. I\'ll stand right here and drip.' },
+      { set: 'callOffer:viking' }
     ]
   };
 
@@ -408,7 +432,8 @@
       want: [
         { who: 'wife', say: 'He called from the lab at one. Locked the keys in with the engine off, thank God. I brought the spare.' },
         { who: 'wife', say: 'I just want to hand them over and see his face. Two minutes.' },
-        { note: ['wife', 'Bringing Pete his spare car keys. He called her from the lab at one.'] }
+        { note: ['wife', 'Bringing Pete his spare car keys. He called her from the lab at one.'] },
+        { set: 'callOffer:wife' }
       ],
       how: [
         { who: 'wife', say: 'Drove. Straight from the hospital. Route 9\'s closed at the Texaco, so I went round by the mall.' },
@@ -421,8 +446,14 @@
         { narrate: 'There was a blue Corolla under the lot light, back bumper pushed in like a thumbprint.' },
         { note: ['wife', 'Pete drives a blue \'89 Corolla with a dented back bumper. It\'s in the lot.'] }
       ] },
-      { id: 'ext', ask: 'Let me ring 4410.', requires: 'saw:wifeKeys', steps: [
-        { narrate: 'I dialled the extension on the tag. It rang twice.' },
+      { id: 'ext', ask: 'Let me ring Pete upstairs.', requires: function (g) {
+        return g.test('saw:wife.wifeKeys') || g.test('run:callOffer:wife');
+      }, steps: [
+        { 'if': 'saw:wife.wifeKeys', then: [
+          { narrate: 'I dialled the extension on the tag, 4410. It rang twice.' }
+        ], 'else': [
+          { narrate: 'DUNN, P. in the Rolodex. Fourth floor, extension 4410. I dialled it. It rang twice.' }
+        ] },
         { narrate: 'A tired man said "Dunn," like he knew exactly who was downstairs. I said his wife was here. He said a word I won\'t write down.' },
         { who: 'wife', say: 'That\'s him. He says that every time.' },
         { note: ['wife', 'Rang extension 4410. Pete Dunn picked up and knew she was coming.'] }
@@ -472,7 +503,8 @@
     ],
     returnGreeting: [
       { who: 'wife', say: 'He called me again. He\'s stuck here till his shift ends and I\'m on again at seven.' },
-      { who: 'wife', say: 'Two minutes, Lou. I\'m not leaving these with a man who locked them in a car.' }
+      { who: 'wife', say: 'Two minutes, Lou. I\'m not leaving these with a man who locked them in a car.' },
+      { set: 'callOffer:wife' }
     ]
   };
 

@@ -138,9 +138,13 @@ button { font: inherit; color: inherit; }
 .stamp.shutdown { background: var(--night2); color: var(--fut); }
 .stamp.locked { background: var(--night3); color: var(--night1); cursor: not-allowed; filter: none; }
 
-.wide #zoom { left: 8px; top: 100px; width: 166px; padding: 5px; background: var(--night1); border: 1px solid var(--lamp4); box-shadow: 3px 3px 0 var(--night0); cursor: pointer; }
-#zoom-art { float: left; image-rendering: pixelated; border: 1px solid var(--night3); }
-.wide #zoom-art { width: 64px; height: 48px; margin-right: 5px; }
+.wide #zoom { left: 6px; top: 96px; width: 180px; height: 84px; box-sizing: border-box; padding: 5px; background: var(--night1); border: 1px solid var(--lamp4); box-shadow: 3px 3px 0 var(--night0); cursor: pointer;
+  display: grid; grid-template-columns: 64px 1fr; grid-template-rows: auto 1fr; column-gap: 5px; align-content: start; overflow: hidden; }
+.wide #zoom[hidden] { display: none; }
+.wide #zoom-art { grid-column: 1; grid-row: 1 / span 2; }
+.wide #zoom-title, .wide #zoom-text { grid-column: 2; min-width: 0; }
+#zoom-art { image-rendering: pixelated; border: 1px solid var(--night3); }
+.wide #zoom-art { width: 64px; height: 48px; }
 #zoom-title { display: block; font-family: var(--pix); color: var(--lamp4); text-transform: uppercase; }
 .wide #zoom-title { font-size: 5px; line-height: 7px; }
 #zoom-text { margin: 0; color: var(--paper); }
@@ -149,7 +153,7 @@ button { font: inherit; color: inherit; }
 #zoom-close:hover, #zoom-close:focus-visible { border-color: var(--lamp4); color: var(--paper); outline: none; }
 .wide #zoom-close { width: 9px; height: 9px; font-size: 6px; padding-left: 1px; }
 .wide #zoom-title { padding-right: 10px; }
-.narrow #zoom { position: relative; }
+.narrow #zoom { position: relative; box-sizing: border-box; min-height: 186px; }
 .narrow #zoom-close { width: 22px; height: 22px; font-size: 12px; top: 4px; right: 4px; }
 .narrow #zoom-title { padding-right: 24px; }
 
@@ -191,6 +195,14 @@ button { font: inherit; color: inherit; }
 .sheet h2 { margin: 0 0 4px; font-family: var(--pix); font-size: 18px; font-weight: 400; letter-spacing: 1px; text-transform: uppercase; color: var(--red); }
 .sheet .sub { margin: 0 0 14px; color: var(--paper-dark); font-size: 18px; }
 .sheet .close { position: absolute; top: 10px; right: 12px; background: transparent; border: 0; cursor: pointer; font-family: var(--pix); font-size: 10px; text-transform: uppercase; color: var(--paper-dark); }
+.notebook details.act { border-top: 1px solid var(--paper-shade); padding: 4px 0 8px; }
+.notebook details.act:first-of-type { border-top: 0; }
+.notebook summary { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; cursor: pointer; padding: 6px 0; list-style: none; }
+.notebook summary::-webkit-details-marker { display: none; }
+.notebook summary::before { content: '\25B8'; margin-right: 6px; color: var(--red); }
+.notebook details[open] > summary::before { content: '\25BE'; }
+.notebook .act-name { flex: 1; font-family: var(--pix); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.notebook .act-count { font-size: 12px; opacity: .7; white-space: nowrap; }
 .notebook h3 { margin: 14px 0 2px; font-family: var(--pix); font-size: 11px; font-weight: 400; text-transform: uppercase; color: var(--red); }
 .notebook ul { margin: 0; padding: 0; list-style: none; }
 .notebook li { display: flex; gap: 12px; align-items: baseline; padding: 3px 0; border-bottom: 1px solid var(--paper-shade); }
@@ -2327,6 +2339,7 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
     if (step.comeBack) { this.comeBack(step.comeBack, 'new'); return null; }
     if (step.radio) { if (E.radio) { if (step.radio === 'off') E.radio.off(); else if (!E.radio.isOn()) E.radio.on(); } return null; }
     if (step.show) { await ui.show(step.show); return null; }
+    if ('actNo' in step) { this.run.actNo = step.actNo; return null; }
     if (step.act) { if (!fast) await ui.actCard(step.act, step.title || ''); return null; }
     if (step.goto) return { goto: step.goto };
     if (step.reset) return { reset: step.reset };
@@ -2375,7 +2388,7 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
     for (var i = 0; i < this.memory.notebook.length; i++) {
       if (this.memory.notebook[i].id === id) return;
     }
-    this.memory.notebook.push({ id: id, who: who, text: text, loop: this.memory.loop });
+    this.memory.notebook.push({ id: id, who: who, text: text, loop: this.memory.loop, act: this.run.actNo || 1 });
     this.save();
     this.ui.noted(this, who);
   };
@@ -2834,6 +2847,12 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
         { narrate: 'A woman. If I\'d ever called my mother "a woman" to her face, I\'d have been smacked into next week.' },
         { note: ['scientist', 'Cake on his sleeve. Says he "bumped into a woman with a cake".'] }
       ] },
+      { id: 'morse', ask: 'There\'s Morse code on the shortwave. Know anything about it?', requires: 'morseDecoded', steps: [
+        { who: 'scientist', say: 'Morse code.' },
+        { who: 'scientist', say: 'Whatever it is, it isn\'t as important as the guests tonight.' },
+        { narrate: 'He said it like a man brushing lint off a coat. He didn\'t ask what it said.' },
+        { note: ['scientist', 'Asked him about the Morse on the shortwave. Brushed it off: not as important as tonight\'s guests. Never asked what it said.'] }
+      ] },
       { id: 'guess', ask: 'Let me guess. Someone\'s going to come to stop you.', requires: 'heardBriefing', steps: [
         { who: 'scientist', say: '...' },
         { who: 'scientist', say: 'How would you...' },
@@ -3106,7 +3125,7 @@ window.EMIT.content.visitorList = [
   V.pizza = {
     id: 'pizza',
     truth: 'legit',
-    prompt: 'The box is still warm. The kid is not thrilled about the rain.',
+    prompt: 'He holds the box level, like his tip depends on it. The kid is not thrilled about the rain.',
     greeting: [
       { who: 'pizza', say: 'Large pepperoni, extra garlic, for, uh...' },
       { who: 'pizza', say: 'Halvorsen? Lab two? Night crew. They paid on the phone, I just need a signature.' }
@@ -3162,6 +3181,25 @@ window.EMIT.content.visitorList = [
         { who: 'pizza', say: 'Boss makes us carry the pager. It never stops.' },
         { narrate: 'A pager. About as ordinary as it gets. I relaxed a little.' },
         { note: ['pizza', 'Carries a work pager that won\'t stop beeping.'] }
+      ] },
+      { id: 'call', ask: 'Let me call Halvorsen in Lab 2.', requires: '!run:turnedAway:pizza', steps: [
+        { narrate: 'I found LAB 2 in the Rolodex and dialled it from the desk phone. It rang five times.' },
+        { narrate: 'A tech who wasn\'t Halvorsen picked up, chewing something. Halvorsen was in the bathroom.' },
+        { narrate: 'Unavailable, he said, like it was a medical condition. Then he hung up before I could say pizza.' },
+        { who: 'pizza', say: 'So? Is he coming down or what? This thing\'s getting cold, man.' },
+        { set: 'calledHalvorsen' },
+        { note: ['pizza', 'Called Lab 2. Another tech said Halvorsen was in the bathroom. Couldn\'t confirm the order.'] }
+      ] },
+      { id: 'callBack', ask: 'Let me call Halvorsen in Lab 2.', requires: 'run:turnedAway:pizza', steps: [
+        { 'if': 'run:calledHalvorsen', then: [
+          { narrate: 'I dialled Lab 2 again. This time the man himself picked up on the first ring.' }
+        ], 'else': [
+          { narrate: 'I found LAB 2 in the Rolodex and dialled it. A man picked up on the first ring.' }
+        ] },
+        { narrate: '"Halvorsen." I said there was a pizza at the front desk with his name on it.' },
+        { narrate: 'Yes, he\'d ordered it. Large pepperoni, extra garlic, an hour ago. He hoped it wasn\'t cold.' },
+        { who: 'pizza', say: 'It\'s cold.' },
+        { note: ['pizza', 'Called Lab 2 again. Halvorsen picked up: he did order the pizza, and hoped it wasn\'t cold.'] }
       ] }
     ],
     actions: {
@@ -3172,6 +3210,7 @@ window.EMIT.content.visitorList = [
       ] },
       turnAway: { steps: [
         { narrate: 'I told him no deliveries after ten. He swore at me in a way that was very much of this decade.' },
+        { set: 'turnedAway:pizza' },
         { exit: 'walk' },
         { note: ['pizza', 'Turned him away. Lab 2 is going to be furious.'] }
       ] },
@@ -3188,7 +3227,11 @@ window.EMIT.content.visitorList = [
         { who: 'pizza', say: 'Is that a... are you scanning me? Dude.' },
         { note: ['pizza', 'Tried the device on him. Nothing. He thinks I\'m nuts.'] }
       ] }
-    }
+    },
+    returnGreeting: [
+      { who: 'pizza', say: 'Me again. Sal says no signature, no pay. And the pie comes out of my check.' },
+      { who: 'pizza', say: 'Lab two ordered it, man. Call up there if you don\'t believe me.' }
+    ]
   };
 
   /* ---------------- The obvious android (android) ---------------- */
@@ -3550,6 +3593,12 @@ window.EMIT.content.visitorList = [
       { id: 'watch', ask: 'Does he wear a digital watch?', requires: 'sawWatch', steps: [
         { who: 'sister', say: 'Dusty? He wears Dad\'s old wind-up Timex. Says digital watches lie to you.' },
         { note: ['sister', 'Her brother wears their dad\'s old wind-up watch. The man upstairs wears a digital one.'] }
+      ] },
+      { id: 'callLab', ask: 'Let me try his lab phone anyway.', requires: 'run:callOffer:sister', steps: [
+        { narrate: 'I dialled Kane\'s lab on four from the desk phone. It rang six times, then the machine picked up.' },
+        { narrate: 'A dry recorded voice: Dr. Kane\'s laboratory, not taking calls. Leave a message at the tone.' },
+        { who: 'sister', say: 'See? Never. He\'d let that thing ring through the Second Coming.' },
+        { note: ['sister', 'Rang Kane\'s lab for her. The answering machine picked up. Nobody answered.'] }
       ] }
     ],
     actions: {
@@ -3584,7 +3633,8 @@ window.EMIT.content.visitorList = [
     returnGreeting: [
       { who: 'sister', say: 'Lou. Please. It\'s Mom. She fell, they took her to St. Agnes. They think it\'s her heart.' },
       { who: 'sister', say: 'He doesn\'t answer the lab phone, he never does. I have to tell him myself. Please.' },
-      { note: ['sister', 'She came back: their mother is in St. Agnes, maybe her heart. She needs to tell her brother in person.'] }
+      { note: ['sister', 'She came back: their mother is in St. Agnes, maybe her heart. She needs to tell her brother in person.'] },
+      { set: 'callOffer:sister' }
     ],
     secondTurnAway: { steps: [
       { narrate: 'I told her no again. She stood there and dripped on my floor, and then she went.' },
@@ -4656,7 +4706,8 @@ window.EMIT.content.visitorList = [
     ],
     greeting: [
       { who: 'victorian', say: 'Good evening. Dr. Pembroke, consulting physician. Dr. Kane has sent for me.' },
-      { who: 'victorian', say: 'If you would be so good as to take my card up to him, my man.' }
+      { who: 'victorian', say: 'If you would be so good as to take my card up to him, my man.' },
+      { set: 'callOffer:victorian' }
     ],
     inspect: [
       { title: 'Hat', zoom: 'victorianHat', x: 228, y: 16, w: 42, h: 34,
@@ -4696,7 +4747,14 @@ window.EMIT.content.visitorList = [
     questions: [
       { id: 'list', ask: 'You\'re not on my list.', requires: 'saw:desk.list', steps: [
         { who: 'victorian', say: 'Lists are for tradesmen. Send word upstairs and the doctor will vouch for me.' },
-        { note: ['victorian', 'Not on Kane\'s visitor list. "Lists are for tradesmen."'] }
+        { note: ['victorian', 'Not on Kane\'s visitor list. "Lists are for tradesmen."'] },
+        { set: 'callOffer:victorian' }
+      ] },
+      { id: 'callUp', ask: 'I\'ll ring Dr. Kane\'s lab and ask.', requires: 'run:callOffer:victorian', steps: [
+        { narrate: 'I dialled Kane\'s lab on four from the desk phone. It rang six times, then the machine picked up.' },
+        { narrate: 'A dry recorded voice: Dr. Kane\'s laboratory, not taking calls. Leave a message at the tone.' },
+        { who: 'victorian', say: 'You are speaking into that thing, and a gramophone is answering? Extraordinary.' },
+        { note: ['victorian', 'Rang Kane\'s lab to ask about him. Answering machine. He thought it was a gramophone.'] }
       ] },
       { id: 'phone', ask: 'What number can I call to confirm?', requires: 'saw:desk.list', steps: [
         { who: 'victorian', say: 'Number? I have a telegraph address. PEMBROKE, LONDON will find me.' },
@@ -5096,6 +5154,13 @@ window.EMIT.content.visitorList = [
         { who: 'mit', say: 'Never. Four years of phone and fax. I know his handwriting better than my own mother\'s.' },
         { who: 'mit', say: 'He doesn\'t do conferences. Tonight\'s the first time he\'s asked anyone up.' },
         { note: ['mit', 'Has never met Kane face to face. Four years of phone and fax.'] }
+      ] },
+      { id: 'callLine', ask: 'Let me ring Kane\'s line myself.', requires: 'run:callOffer:mit', steps: [
+        { narrate: 'I dialled Kane\'s lab on four from the desk phone. It rang six times, then the machine picked up.' },
+        { narrate: 'A dry recorded voice: Dr. Kane\'s laboratory, not taking calls. Leave a message at the tone.' },
+        { narrate: 'Whatever he\'d heard from the Texaco, it wasn\'t on this end of the tape. I hung up before the beep.' },
+        { who: 'mit', say: 'There\'s a second message if you press star. Never mind. Machines.' },
+        { note: ['mit', 'Rang Kane\'s line. Answering machine, "not taking calls". Proved nothing either way.'] }
       ] }
     ],
     actions: {
@@ -5134,7 +5199,8 @@ window.EMIT.content.visitorList = [
     returnGreeting: [
       { who: 'mit', say: 'Sorry, me again. I rang Kane\'s line from the pay phone outside the Texaco.' },
       { who: 'mit', say: 'The machine says the meeting\'s on. And it\'s getting late for these numbers. Please.' },
-      { note: ['mit', 'Came back. Says Kane\'s answering machine confirms the meeting.'] }
+      { note: ['mit', 'Came back. Says Kane\'s answering machine confirms the meeting.'] },
+      { set: 'callOffer:mit' }
     ],
     secondTurnAway: { steps: [
       { narrate: 'I sent him away again. He nodded like I\'d given him a bad grade, and went.' },
@@ -5195,6 +5261,14 @@ window.EMIT.content.visitorList = [
       ]
     },
     questions: [
+      { id: 'morse', ask: 'There\'s Morse code on my radio. Can you read it?', requires: 'now:heardMorse', steps: [
+        { narrate: 'I turned the radio up. He tilted his head toward it like a dog hearing its name.' },
+        { who: 'soldier', say: 'Sure. Signals school, Camp Crowder. They drill it into you till you dream in it.' },
+        { who: 'soldier', say: 'P-R-I-S-O-N-E-R. E-S-C-A-P-E-D. Prisoner escaped. Over and over.' },
+        { who: 'soldier', say: 'Somebody\'s lost a man, sir. I\'d hate to be the fella on watch.' },
+        { note: ['soldier', 'Read the Morse on the shortwave without blinking: PRISONER ESCAPED, over and over.'] },
+        { learn: 'morseDecoded' }
+      ] },
       { id: 'serve', ask: 'Where did you serve?', requires: 'saw:soldierTin', steps: [
         { who: 'soldier', say: 'The Ardennes, last winter. Cold as anything. Jerry threw everything he had at us.' },
         { narrate: 'Last winter. The Ardennes was fifty-odd years ago. Any man who\'d been there would be seventy now.' },
@@ -5827,6 +5901,14 @@ window.EMIT.content.visitorList = [
       ]
     },
     questions: [
+      { id: 'morse', ask: 'There\'s Morse on my radio, Colonel. Know what it is?', requires: 'now:heardMorse', steps: [
+        { narrate: 'He listened for four seconds. His jaw did something.' },
+        { who: 'liaison', say: 'Prisoner escaped. Repeating.' },
+        { who: 'liaison', say: 'That\'s not a ham operator, son. That\'s a facility talking to someone who\'s meant to be listening.' },
+        { who: 'liaison', say: 'Turn it off. Or don\'t. Either way, you didn\'t hear it from me.' },
+        { note: ['liaison', 'Brandt decoded the shortwave Morse: PRISONER ESCAPED. Says it\'s a facility signalling someone.'] },
+        { learn: 'morseDecoded' }
+      ] },
       { id: 'list', ask: 'Let me check the list.', requires: 'saw:desk.list', steps: [
         { 'if': 'run:hasList', then: [
           { narrate: 'Lt. Col. D. Brandt, Defense liaison. Right there in Kane\'s hand.' },
@@ -5964,7 +6046,14 @@ window.EMIT.content.visitorList = [
         { who: 'hippie', say: 'My what?' },
         { who: 'hippie', say: 'Just ring the office. KLondike five, two-two-oh-seven. Ask for Skip.' },
         { narrate: 'Channel 7 had a fax number on her card. This one gave me a telephone exchange.' },
-        { note: ['hippie', 'Didn\'t know what email was. Gave me a phone number with an exchange name, KLondike 5.'] }
+        { note: ['hippie', 'Didn\'t know what email was. Gave me a phone number with an exchange name, KLondike 5.'] },
+        { set: 'callOffer:hippie' }
+      ] },
+      { id: 'callOffice', ask: 'I\'ll ring your office. Ask for Skip, you said.', requires: 'run:callOffer:hippie', steps: [
+        { narrate: 'I dialled KL5-2207 on the desk phone. The K and the L were a five and a five. I checked twice.' },
+        { narrate: 'Three rising tones, then a woman on tape: the number you have dialed is not in service.' },
+        { who: 'hippie', say: 'Huh. They must be on deadline, man. Nobody picks up on deadline.' },
+        { note: ['hippie', 'Rang his office, KLondike 5-2207. "The number you have dialed is not in service."'] }
       ] },
       { id: 'patch', ask: 'Nice patch. Vintage?', requires: 'saw:hippiePatch', steps: [
         { who: 'hippie', say: 'Vintage? Sewed it on last week. You into the movement?' },
@@ -6084,7 +6173,15 @@ window.EMIT.content.visitorList = [
       { id: 'cousin', ask: 'Your cousin isn\'t on my visitor list.', requires: 'saw:desk.list', steps: [
         { who: 'viking', say: 'She\'s not a visitor, man, she works here. Night crew, lab three. Short, glasses, laughs like a goose.' },
         { narrate: 'I flipped the Rolodex. HOLT, D. Lab 3. Night crew. Extension 3318.' },
-        { note: ['viking', 'His cousin isn\'t a visitor. Dana Holt is in the Rolodex: Lab 3, night crew, ext. 3318.'] }
+        { note: ['viking', 'His cousin isn\'t a visitor. Dana Holt is in the Rolodex: Lab 3, night crew, ext. 3318.'] },
+        { set: 'callOffer:viking' }
+      ] },
+      { id: 'callDana', ask: 'Let me ring Dana Holt in Lab 3.', requires: 'run:callOffer:viking', steps: [
+        { narrate: 'HOLT, D. in the Rolodex. Extension 3318. I dialled it from the desk phone.' },
+        { narrate: 'A man picked up with a lot of machinery behind him. Holt was in the clean room, gowned to the eyes.' },
+        { narrate: 'Nobody comes out of there to answer a phone, he said. He\'d leave her a note. He hung up.' },
+        { who: 'viking', say: 'Clean room. Yeah. She does that. Comes out looking like a marshmallow.' },
+        { note: ['viking', 'Rang Lab 3, ext. 3318. Dana Holt was in the clean room. Couldn\'t come to the phone.'] }
       ] }
     ],
     actions: {
@@ -6115,7 +6212,8 @@ window.EMIT.content.visitorList = [
     ],
     returnGreeting: [
       { who: 'viking', say: 'Okay. I\'m not Gunnar anymore. I\'m a cold guy named Greg who wants his car keys.' },
-      { who: 'viking', say: 'Please. Call Dana. Lab three. I\'ll stand right here and drip.' }
+      { who: 'viking', say: 'Please. Call Dana. Lab three. I\'ll stand right here and drip.' },
+      { set: 'callOffer:viking' }
     ]
   };
 
@@ -6156,7 +6254,8 @@ window.EMIT.content.visitorList = [
       want: [
         { who: 'wife', say: 'He called from the lab at one. Locked the keys in with the engine off, thank God. I brought the spare.' },
         { who: 'wife', say: 'I just want to hand them over and see his face. Two minutes.' },
-        { note: ['wife', 'Bringing Pete his spare car keys. He called her from the lab at one.'] }
+        { note: ['wife', 'Bringing Pete his spare car keys. He called her from the lab at one.'] },
+        { set: 'callOffer:wife' }
       ],
       how: [
         { who: 'wife', say: 'Drove. Straight from the hospital. Route 9\'s closed at the Texaco, so I went round by the mall.' },
@@ -6169,8 +6268,14 @@ window.EMIT.content.visitorList = [
         { narrate: 'There was a blue Corolla under the lot light, back bumper pushed in like a thumbprint.' },
         { note: ['wife', 'Pete drives a blue \'89 Corolla with a dented back bumper. It\'s in the lot.'] }
       ] },
-      { id: 'ext', ask: 'Let me ring 4410.', requires: 'saw:wifeKeys', steps: [
-        { narrate: 'I dialled the extension on the tag. It rang twice.' },
+      { id: 'ext', ask: 'Let me ring Pete upstairs.', requires: function (g) {
+        return g.test('saw:wife.wifeKeys') || g.test('run:callOffer:wife');
+      }, steps: [
+        { 'if': 'saw:wife.wifeKeys', then: [
+          { narrate: 'I dialled the extension on the tag, 4410. It rang twice.' }
+        ], 'else': [
+          { narrate: 'DUNN, P. in the Rolodex. Fourth floor, extension 4410. I dialled it. It rang twice.' }
+        ] },
         { narrate: 'A tired man said "Dunn," like he knew exactly who was downstairs. I said his wife was here. He said a word I won\'t write down.' },
         { who: 'wife', say: 'That\'s him. He says that every time.' },
         { note: ['wife', 'Rang extension 4410. Pete Dunn picked up and knew she was coming.'] }
@@ -6220,7 +6325,8 @@ window.EMIT.content.visitorList = [
     ],
     returnGreeting: [
       { who: 'wife', say: 'He called me again. He\'s stuck here till his shift ends and I\'m on again at seven.' },
-      { who: 'wife', say: 'Two minutes, Lou. I\'m not leaving these with a man who locked them in a car.' }
+      { who: 'wife', say: 'Two minutes, Lou. I\'m not leaving these with a man who locked them in a car.' },
+      { set: 'callOffer:wife' }
     ]
   };
 
@@ -9770,6 +9876,16 @@ window.EMIT.content.visitorList = [
     'Another one for the supply closet. The mop knew the way by now.'
   ];
 
+  // act numbers, for the notebook: every slot knows which act it belongs to
+  var actNo = 0, ACT_OF = {}, ACTS = [];
+  NIGHT.forEach(function (n) {
+    if (n.act) { actNo++; ACTS.push({ no: actNo, name: n.act, title: n.title }); }
+    n.actNo = Math.max(1, actNo);
+    if (n.id && !(n.id in ACT_OF)) ACT_OF[n.id] = n.actNo;
+  });
+  E.content.acts = ACTS;
+  E.content.actOf = ACT_OF;
+
   var hasDevice = false;
   var scenes = [];
   NIGHT.forEach(function (n, i) {
@@ -9786,6 +9902,7 @@ window.EMIT.content.visitorList = [
 
     // keep the desk tools consistent when a scene is started directly (debug, tests)
     steps.push({ set: 'hasList' });
+    steps.push({ actNo: n.actNo });
     if (sc.device) steps.push({ set: 'hasDevice' });
 
     if (n.act) {
@@ -9890,6 +10007,8 @@ window.EMIT.content.visitorList = [
         E.radio.onChange(function (st) {
           self.S.radio = { on: st.on, index: st.index };
           $('radio-text').textContent = st.on ? st.station.freq + ' ' + st.station.name : '';
+          // tuning in the shortwave Morse once is enough for the soldiers to be asked about it
+          if (st.on && st.station.id === 'morse' && self.game && self.game.run) self.game.learn('heardMorse');
         });
       }
       this.soundLabel(E.audio.isMuted());
@@ -10023,6 +10142,7 @@ window.EMIT.content.visitorList = [
       var S = this.S, self = this;
       $('hots').innerHTML = '';
       $('zoom').hidden = true;
+      if (kind === 'fall' && S.drawerOpen) { clearTimeout(this.drawerTimer2); this.setDrawer(false); E.audio.play('drawer'); }
       if (!S.visitor) return Promise.resolve();
       var p = kind === 'fall' ? this.move('y', 0, E.art.fallTo, fast ? 1 : 380) : this.move('x', 0, side === 'left' ? E.art.enterFrom : E.art.exitTo, fast ? 1 : 650);
       return p.then(function () { S.visitor = null; S.vx = 0; S.vy = 0; self.present = null; });
@@ -10250,7 +10370,10 @@ window.EMIT.content.visitorList = [
           self.deskDone = null;
           self.mode = null;
           // after a shot the drawer stays out a moment, then slides home
-          if (v && (v.id === 'shoot' || v.id === 'shutdown')) setTimeout(function () { self.setDrawer(false); }, 1800);
+          // the drawer slides home as the visitor goes down (see exit); a shot
+          // that drops nobody, or the device on a person, closes it shortly after
+          if (v && v.id === 'shoot') self.drawerTimer2 = setTimeout(function () { self.setDrawer(false); }, 2600);
+          else if (v && v.id === 'shutdown') self.drawerTimer2 = setTimeout(function () { self.setDrawer(false); }, 700);
           else self.setDrawer(false);
           $('pad').hidden = true; $('actions').hidden = true;
           resolve(v);
@@ -10323,20 +10446,33 @@ window.EMIT.content.visitorList = [
     noted: function () { $('nb-badge').hidden = false; },
 
     openNotebook: function () {
-      var g = this.game, notes = g.memory.notebook, groups = {}, order = [];
+      // notes are filed by act (anything before Act One counts as Act One), then by person
+      var g = this.game, notes = g.memory.notebook, latest = g.memory.loop;
+      var acts = E.content.acts && E.content.acts.length ? E.content.acts : [{ no: 1, name: 'Act One', title: '' }];
+      var actOf = E.content.actOf || {}, byAct = {};
       notes.forEach(function (n) {
-        if (!groups[n.who]) { groups[n.who] = []; order.push(n.who); }
-        groups[n.who].push(n);
+        var a = Math.min(acts.length, n.act || actOf[n.who] || 1);
+        var bucket = byAct[a] = byAct[a] || { groups: {}, order: [], count: 0, fresh: 0 };
+        if (!bucket.groups[n.who]) { bucket.groups[n.who] = []; bucket.order.push(n.who); }
+        bucket.groups[n.who].push(n); bucket.count++; if (n.loop === latest) bucket.fresh++;
       });
-      var latest = g.memory.loop;
-      var html = order.length ? '' : '<p class="empty-note">Nothing written down yet. Ask questions, and click on people in the window to look closer. The notebook keeps what you learn when the night starts over.</p>';
-      order.forEach(function (who) {
-        var c = E.content.characters[who];
-        html += '<h3>' + esc(c ? c.notebookName || c.name : who) + '</h3><ul>';
-        groups[who].forEach(function (n) {
-          html += '<li class="' + (n.loop === latest ? 'new' : '') + '"><span class="txt">' + esc(n.text) + '</span><span class="when">loop ' + n.loop + '</span></li>';
+      var here = Math.min(acts.length, (g.run && g.run.actNo) || 1);
+      var html = notes.length ? '' : '<p class="empty-note">Nothing written down yet. Ask questions, and click on people in the window to look closer. The notebook keeps what you learn when the night starts over.</p>';
+      acts.forEach(function (act) {
+        var b = byAct[act.no];
+        if (!b) return;
+        html += '<details class="act"' + (act.no === here ? ' open' : '') + '><summary><span class="act-name">' + esc(act.name) +
+          (act.title ? ' \u00b7 ' + esc(act.title) : '') + '</span><span class="act-count">' + b.count + ' note' + (b.count === 1 ? '' : 's') +
+          (b.fresh ? ', ' + b.fresh + ' new' : '') + '</span></summary>';
+        b.order.forEach(function (who) {
+          var c = E.content.characters[who];
+          html += '<h3>' + esc(c ? c.notebookName || c.name : who) + '</h3><ul>';
+          b.groups[who].forEach(function (n) {
+            html += '<li class="' + (n.loop === latest ? 'new' : '') + '"><span class="txt">' + esc(n.text) + '</span><span class="when">loop ' + n.loop + '</span></li>';
+          });
+          html += '</ul>';
         });
-        html += '</ul>';
+        html += '</details>';
       });
       $('notebook-body').innerHTML = html;
       $('nb-badge').hidden = true;

@@ -196,7 +196,8 @@
     ],
     greeting: [
       { who: 'victorian', say: 'Good evening. Dr. Pembroke, consulting physician. Dr. Kane has sent for me.' },
-      { who: 'victorian', say: 'If you would be so good as to take my card up to him, my man.' }
+      { who: 'victorian', say: 'If you would be so good as to take my card up to him, my man.' },
+      { set: 'callOffer:victorian' }
     ],
     inspect: [
       { title: 'Hat', zoom: 'victorianHat', x: 228, y: 16, w: 42, h: 34,
@@ -236,7 +237,14 @@
     questions: [
       { id: 'list', ask: 'You\'re not on my list.', requires: 'saw:desk.list', steps: [
         { who: 'victorian', say: 'Lists are for tradesmen. Send word upstairs and the doctor will vouch for me.' },
-        { note: ['victorian', 'Not on Kane\'s visitor list. "Lists are for tradesmen."'] }
+        { note: ['victorian', 'Not on Kane\'s visitor list. "Lists are for tradesmen."'] },
+        { set: 'callOffer:victorian' }
+      ] },
+      { id: 'callUp', ask: 'I\'ll ring Dr. Kane\'s lab and ask.', requires: 'run:callOffer:victorian', steps: [
+        { narrate: 'I dialled Kane\'s lab on four from the desk phone. It rang six times, then the machine picked up.' },
+        { narrate: 'A dry recorded voice: Dr. Kane\'s laboratory, not taking calls. Leave a message at the tone.' },
+        { who: 'victorian', say: 'You are speaking into that thing, and a gramophone is answering? Extraordinary.' },
+        { note: ['victorian', 'Rang Kane\'s lab to ask about him. Answering machine. He thought it was a gramophone.'] }
       ] },
       { id: 'phone', ask: 'What number can I call to confirm?', requires: 'saw:desk.list', steps: [
         { who: 'victorian', say: 'Number? I have a telegraph address. PEMBROKE, LONDON will find me.' },
@@ -636,6 +644,13 @@
         { who: 'mit', say: 'Never. Four years of phone and fax. I know his handwriting better than my own mother\'s.' },
         { who: 'mit', say: 'He doesn\'t do conferences. Tonight\'s the first time he\'s asked anyone up.' },
         { note: ['mit', 'Has never met Kane face to face. Four years of phone and fax.'] }
+      ] },
+      { id: 'callLine', ask: 'Let me ring Kane\'s line myself.', requires: 'run:callOffer:mit', steps: [
+        { narrate: 'I dialled Kane\'s lab on four from the desk phone. It rang six times, then the machine picked up.' },
+        { narrate: 'A dry recorded voice: Dr. Kane\'s laboratory, not taking calls. Leave a message at the tone.' },
+        { narrate: 'Whatever he\'d heard from the Texaco, it wasn\'t on this end of the tape. I hung up before the beep.' },
+        { who: 'mit', say: 'There\'s a second message if you press star. Never mind. Machines.' },
+        { note: ['mit', 'Rang Kane\'s line. Answering machine, "not taking calls". Proved nothing either way.'] }
       ] }
     ],
     actions: {
@@ -674,7 +689,8 @@
     returnGreeting: [
       { who: 'mit', say: 'Sorry, me again. I rang Kane\'s line from the pay phone outside the Texaco.' },
       { who: 'mit', say: 'The machine says the meeting\'s on. And it\'s getting late for these numbers. Please.' },
-      { note: ['mit', 'Came back. Says Kane\'s answering machine confirms the meeting.'] }
+      { note: ['mit', 'Came back. Says Kane\'s answering machine confirms the meeting.'] },
+      { set: 'callOffer:mit' }
     ],
     secondTurnAway: { steps: [
       { narrate: 'I sent him away again. He nodded like I\'d given him a bad grade, and went.' },
@@ -735,6 +751,14 @@
       ]
     },
     questions: [
+      { id: 'morse', ask: 'There\'s Morse code on my radio. Can you read it?', requires: 'now:heardMorse', steps: [
+        { narrate: 'I turned the radio up. He tilted his head toward it like a dog hearing its name.' },
+        { who: 'soldier', say: 'Sure. Signals school, Camp Crowder. They drill it into you till you dream in it.' },
+        { who: 'soldier', say: 'P-R-I-S-O-N-E-R. E-S-C-A-P-E-D. Prisoner escaped. Over and over.' },
+        { who: 'soldier', say: 'Somebody\'s lost a man, sir. I\'d hate to be the fella on watch.' },
+        { note: ['soldier', 'Read the Morse on the shortwave without blinking: PRISONER ESCAPED, over and over.'] },
+        { learn: 'morseDecoded' }
+      ] },
       { id: 'serve', ask: 'Where did you serve?', requires: 'saw:soldierTin', steps: [
         { who: 'soldier', say: 'The Ardennes, last winter. Cold as anything. Jerry threw everything he had at us.' },
         { narrate: 'Last winter. The Ardennes was fifty-odd years ago. Any man who\'d been there would be seventy now.' },
