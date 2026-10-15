@@ -144,7 +144,7 @@ body {
   var TALES = [
     { id: 'emit', name: 'Emit Time', x: 92, y: 204, ready: true, url: local ? 'game/index.html' : SITE + 'game/' },
     { id: 'asylum', name: 'The Asylum', x: 148, y: 164 },
-    { id: 'upstairs', name: 'Upstairs', x: 240, y: 150, ready: true, url: local ? 'stories/upstairs/index.html' : SITE + 'stories/upstairs/' },
+    { id: 'intruders', name: 'Intruders', x: 240, y: 150 },
     { id: 'walks', name: 'It Walks', x: 332, y: 164 },
     { id: 'lab', name: 'The Lab', x: 388, y: 204 }
   ];
@@ -623,17 +623,18 @@ body {
       '...f..ff.tt.',
       '..ff..f.....'
     ], map: { s: C.steel, f: C.fog, t: C.paperShade } },
-    upstairs: { rows: [
-      '....WWW....',
-      '....WWw....',
-      '....WWw....',
-      '...WWWw....',
-      '....WWw....',
-      '....WWw....',
-      '..bbbbbbb..',
-      '.bBBBBBBBb.',
-      '..bbbbbbb..'
-    ], map: { W: C.paper, w: C.paperShade, b: C.wood3, B: C.lamp3 } },
+    intruders: { rows: [ // a ski mask
+      '...nnnnn...',
+      '..nNNNNNn..',
+      '.nNNNNNNNn.',
+      '.nNNNNNNNn.',
+      '.nsesNsesn.',
+      '.nNNNNNNNn.',
+      '.nNNsssNNn.',
+      '.nNNNNNNNn.',
+      '..nNNNNNn..',
+      '...nnnnn...'
+    ], map: { n: C.red0, N: C.red1, s: C.skinA2, e: C.night0 } },
     walks: { rows: [
       '...bbbb....',
       '...bBBb....',
@@ -714,11 +715,7 @@ body {
       if (hover === t.id) outline(g, p.rows, o[0], o[1], C.lamp4);
       sprite(g, p.rows, p.map, o[0], o[1]);
       if (t.id === 'emit' && tick % 50 < 4) px(g, o[0] + 7, o[1] + 4, C.fut1);
-      if (t.id === 'upstairs') { // candle flame
-        var fl = tick % 6 < 3 ? 0 : 1;
-        px(g, o[0] + 5, o[1] - 1, C.night0);
-        px(g, o[0] + 5, o[1] - 2, C.lamp3); px(g, o[0] + 5 - fl, o[1] - 3, C.lamp4); px(g, o[0] + 5, o[1] - 4 - fl, C.lamp4);
-      }
+      if (t.id === 'intruders' && tick % 90 < 3) { px(g, o[0] + 3, o[1] + 4, C.skinA2); px(g, o[0] + 7, o[1] + 4, C.skinA2); } // a blink
       if (t.id === 'lab') bubbles.forEach(function (b) { px(g, o[0] + b.x, o[1] + Math.round(b.y), C.crt2); });
     });
     if (ev && ev.name === 'deer') drawDeerEvent(ev);
