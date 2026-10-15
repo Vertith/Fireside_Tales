@@ -758,7 +758,7 @@ body {
   }
 
   // ---------- things in the woods: one random event at a time ----------
-  var ev = null, lastEvent = null, nextAt = 60;
+  var ev = null, lastEvent = null, nextAt = 60, bag = [], played = [];
   try { lastEvent = sessionStorage.getItem('fireside-last-event'); } catch (err) {}
   var EVENTS = ['lightning', 'walker', 'deer', 'eyes', 'ghost', 'help', 'star', 'hanged'];
   var AUDIO_ONLY = { help: true };
@@ -772,16 +772,26 @@ body {
     if (name === 'help') helpMe();
     if (name === 'star') { ev.x = 150 + Math.random() * 40; ev.y = 8 + Math.random() * 14; ev.dx = -(4 + Math.random() * 2); ev.dy = 1.6 + Math.random(); }
     if (name === 'hanged') creak();
-    lastEvent = name;
+    lastEvent = name; played.push([name, tick]);
     try { sessionStorage.setItem('fireside-last-event', name); } catch (err) {}
   }
-  function endEvent() { ev = null; nextAt = tick + 140 + Math.floor(Math.random() * 220); }
+  function endEvent() { ev = null; nextAt = tick + 100 + Math.floor(Math.random() * 100); }
+  // A shuffled playlist: every event plays once, in random order, before any plays again,
+  // so a full round (about three and a half minutes) fits well inside six.
+  function nextFromBag() {
+    if (!bag.length) {
+      bag = EVENTS.slice();
+      for (var i = bag.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), tmp = bag[i]; bag[i] = bag[j]; bag[j] = tmp; }
+      if (bag[0] === lastEvent) bag.push(bag.shift()); // never the same twice in a row across rounds
+    }
+    var name = bag.shift();
+    if (AUDIO_ONLY[name] && !soundOn) return bag.length ? nextFromBag() : EVENTS.filter(function (e) { return e !== lastEvent && !AUDIO_ONLY[e]; })[0];
+    return name;
+  }
   function stepEvent() {
     if (!ev) {
       if (tick >= nextAt) {
-        // never the same twice in a row; sound-only events only when the sound is on
-        var pool = EVENTS.filter(function (e) { return e !== lastEvent && (!AUDIO_ONLY[e] || soundOn); });
-        startEvent(pool[Math.floor(Math.random() * pool.length)]);
+        startEvent(nextFromBag());
       }
       return;
     }
@@ -790,7 +800,7 @@ body {
     else if (ev.name === 'walker') { ev.x += 0.55; if (ev.t % 6 === 0) shuffle(ev.x); if (ev.x >= HIDE_TREE.x) endEvent(); }
     else if (ev.name === 'eyes') { if (ev.t === 8) breath(ev.x); if (ev.t > 70) endEvent(); }
     else if (ev.name === 'deer') stepDeer(ev);
-    else if (ev.name === 'ghost') { if (ev.t === 30 && laughSoon) { laughSoon = false; childLaugh(); } if (ev.t > GHOST_TICKS) endEvent(); }
+    else if (ev.name === 'ghost') { if (ev.t === 30 && laughSoon) childLaugh(); if (ev.t === 74 && laughSoon) { laughSoon = false; childLaugh(true); } if (ev.t > GHOST_TICKS) endEvent(); }
     else if (ev.name === 'help' && ev.t > 40) endEvent();
     else if (ev.name === 'star') { ev.x += ev.dx; ev.y += ev.dy; if (ev.t > 14) endEvent(); }
     else if (ev.name === 'hanged' && ev.t > HANG_END + 8) endEvent();
@@ -850,7 +860,7 @@ body {
   }
 
   // 7. A body hangs from the oak nearest the fire, for under two seconds, with a creak.
-  var HANG = { x: 196, limb: 104, tree: 206 }, HANG_START = 4, HANG_END = 24;
+  var HANG = { x: 196, limb: 104, tree: 206 }, HANG_START = 4, HANG_END = 36;
   function drawHanged(e) {
     if (e.t < HANG_START || e.t > HANG_END) return;
     var sw = Math.round(Math.sin(e.t * 0.35) * 0.8), x = HANG.x + sw, y = HANG.limb;
@@ -1077,7 +1087,7 @@ body {
     var c = t < 12 || t > 58 ? C.lamp3 : C.lamp4;
     rect(g, e.x, e.y, 2, 1, c); rect(g, e.x + 4, e.y, 2, 1, c);
   }
-  window.FIRESIDE = { play: function (name) { if (EVENTS.indexOf(name) >= 0) startEvent(name); }, event: function () { return ev; } };
+  window.FIRESIDE = { play: function (name) { if (EVENTS.indexOf(name) >= 0) startEvent(name); }, event: function () { return ev; }, played: played };
   var last = 0;
   function frame(ts) {
     if (ts - last > 70) { last = ts; update(); draw(); }
@@ -1326,19 +1336,19 @@ body {
       [0.1, 280, 1100, 0.55, 0, 262], [0.42, 320, 2350, 0.9, 0.1, 190], [0.12, 320, 2300, 0.2, 0.3, 180]
     ]);
   }
-  function childLaugh() { // a little girl giggling, somewhere close behind the trees
+  function childLaugh(soft) { // a little girl giggling, close behind the trees
     if (!soundOn || !actx) return;
-    var t = actx.currentTime + 0.05, segs = [];
-    for (var i = 0; i < 5; i++) {
-      var p = 560 - i * 25;
-      segs.push([0.035, 400, 2600, 0.5, 1, p], [0.085, 390, 2650, 1, 0.15, p - 30], [0.06, 0, 0, 0, 0, 0]);
+    var t = actx.currentTime + 0.05, segs = [], n = soft ? 4 : 7;
+    for (var i = 0; i < n; i++) {
+      var p = 600 + (i < 2 ? i * 30 : 60 - (i - 2) * 28); // up, then trailing off
+      segs.push([0.03, 420, 2700, 0.6, 1, p], [0.09, 400, 2750, 1, 0.2, p - 35], [0.055, 0, 0, 0, 0, 0]);
     }
-    voice(t, -0.55, 0.75, 0.06, 560, segs);
+    voice(t, -0.55, soft ? 0.6 : 0.4, soft ? 0.08 : 0.14, 600, segs);
   }
   function creak() { // a rope and a branch taking a weight
     if (!soundOn || !actx) return;
     var t = actx.currentTime;
-    [0, 1.05].forEach(function (d, i) {
+    [0, 1.05, 2.1].forEach(function (d, i) {
       var o = out(-0.2, 0.5, 0.7);
       var osc = actx.createOscillator(); osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(118 - i * 12, t + d); osc.frequency.linearRampToValueAtTime(92 - i * 8, t + d + 0.8);
