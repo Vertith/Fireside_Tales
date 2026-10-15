@@ -54,6 +54,10 @@
         { text: 'Got it.', exit: true, steps: [
           { who: 'scientist', say: 'Good man. Not long now.' }
         ] },
+        // the same as "Got it.", as a stamp on the desk
+        { text: 'Got it.', action: 'letThrough', stamp: 'Let him go', label: 'Let him go back up', exit: true, steps: [
+          { who: 'scientist', say: 'Good man. Not long now.' }
+        ] },
         // the desk is open as usual: the Drawer, with the revolver and now the device in it
         { text: 'Try the device on him.', action: 'shutdown', label: 'Point the device at Kane', heading: 'in', exit: true, steps: [
           { narrate: 'I picked the box up, pointed it at him and pressed the button. Nothing happened.' },
@@ -100,7 +104,7 @@
           { narrate: 'The top folder said KANE, A. in someone else\'s handwriting.' },
           { note: ['scientist', 'Carrying folders labelled KANE, A. in someone else\'s handwriting, to burn them.'] }
         ] },
-        { text: 'Point the device at him.', requires: 'run:hasDevice', steps: [
+        { text: 'Point the device at him.', requires: 'run:hasDevice', action: 'shutdown', label: 'Point the device at Kane', heading: 'in', exit: true, steps: [
           { narrate: 'I picked up the grey box and pointed it at him. Just to see.' },
           { who: 'scientist', say: 'Don\'t—' },
           { narrate: 'I pressed it. Nothing happened. He flinched anyway, like a man who knew exactly what it does.' },
@@ -112,6 +116,19 @@
         ] },
         { text: 'I\'ll hold them.', exit: true, steps: [
           { who: 'scientist', say: 'I know you will. You always do.' }
+        ] },
+        // the same as "I'll hold them.", as a stamp on the desk
+        { text: 'I\'ll hold them.', action: 'letThrough', stamp: 'Let him go', label: 'Let him go back up', exit: true, steps: [
+          { who: 'scientist', say: 'I know you will. You always do.' }
+        ] },
+        { text: 'Shoot him.', action: 'shoot', exit: true, steps: [
+          { sfx: 'gunshot' },
+          { exit: 'fall' },
+          { narrate: 'Soot on his cuffs, folders all over my floor. Whatever he was finishing up there, he didn\'t.' },
+          { narrate: 'The police came at six. Nobody believes a night guard who shoots a scientist for working late.' },
+          { note: ['scientist', 'Shot Kane at ten to five. Nobody believed a word of it.'] },
+          { learn: 'shotKane' },
+          { reset: 'You shot the scientist with nothing to show for it.' }
         ] }
       ]
     } },

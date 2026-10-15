@@ -314,6 +314,14 @@
       R(dx + 4, dy + 19, 8, 1, '#565c68');                                      // seam
     }
     var gx = x + (hasDev ? 40 : 34), gy = 204 + oy + 11;
+    // the wanted poster from 5:16, tucked under the barrel: glowing blue edge, photo, 0-1 in red
+    if (E.game && E.game.run && E.game.run.flags && E.game.run.flags.posterInDrawer) {
+      var px = gx + 26, py = gy + 4;
+      R(px - 1, py - 1, 46, 22, '#3fd0e8'); R(px, py, 44, 20, '#1d6f86');
+      R(px + 2, py + 2, 40, 16, P.paper); R(px + 2, py + 2, 40, 2, P.red1);
+      R(px + 4, py + 6, 10, 10, P.paperShade); R(px + 6, py + 9, 6, 5, P.skinA1); R(px + 5, py + 6, 8, 3, '#b8c4d8'); R(px + 6, py + 10, 6, 1, P.night0);
+      R(px + 17, py + 6, 16, 1, P.night0); R(px + 17, py + 9, 10, 4, P.red1); R(px + 29, py + 9, 11, 7, P.red1);
+    }
     // grip: hangs from the back of the frame and sweeps down and back
     poly([[gx + 5, gy + 6], [gx + 14, gy + 7], [gx + 8, gy + 21], [gx + 6, gy + 23], [gx - 2, gy + 22], [gx - 3, gy + 19]], P.brown1);
     poly([[gx + 6, gy + 8], [gx + 11, gy + 9], [gx + 6, gy + 19], [gx + 1, gy + 19]], P.brown2);
@@ -928,6 +936,7 @@
       var out = [{ id: 'gun', x: gx - 4, y: 212, w: 84, h: 26 }];
       if (hasDev) out.push({ id: 'device', x: 331, y: 217, w: 18, h: 24 });
       out.push({ id: 'ammo', x: 442, y: 214, w: 24, h: 30 });   // the box of shells
+      if (E.game.run.flags.posterInDrawer) out.push({ id: 'poster', x: gx + 25, y: 228, w: 47, h: 14 });   // below the barrel
       return out;
     },
     /**

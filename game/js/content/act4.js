@@ -304,6 +304,7 @@
       { note: ['scientist', 'His name isn\'t Kane. It\'s Emit. Prisoner 0-1, escaped custody in 2240. I have the poster.'] },
       { who: 'engineer', say: 'That\'s... I\'m sorry. That isn\'t mine.' },
       { narrate: 'He reached for it. I got there first and put it in the drawer, under the revolver.' },
+      { set: 'posterInDrawer' },
       { who: 'engineer', say: 'Badge. Here. As I said, I\'m on the list.' }
     ],
     inspect: [

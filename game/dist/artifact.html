@@ -710,6 +710,14 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
       R(dx + 4, dy + 19, 8, 1, '#565c68');                                      // seam
     }
     var gx = x + (hasDev ? 40 : 34), gy = 204 + oy + 11;
+    // the wanted poster from 5:16, tucked under the barrel: glowing blue edge, photo, 0-1 in red
+    if (E.game && E.game.run && E.game.run.flags && E.game.run.flags.posterInDrawer) {
+      var px = gx + 26, py = gy + 4;
+      R(px - 1, py - 1, 46, 22, '#3fd0e8'); R(px, py, 44, 20, '#1d6f86');
+      R(px + 2, py + 2, 40, 16, P.paper); R(px + 2, py + 2, 40, 2, P.red1);
+      R(px + 4, py + 6, 10, 10, P.paperShade); R(px + 6, py + 9, 6, 5, P.skinA1); R(px + 5, py + 6, 8, 3, '#b8c4d8'); R(px + 6, py + 10, 6, 1, P.night0);
+      R(px + 17, py + 6, 16, 1, P.night0); R(px + 17, py + 9, 10, 4, P.red1); R(px + 29, py + 9, 11, 7, P.red1);
+    }
     // grip: hangs from the back of the frame and sweeps down and back
     poly([[gx + 5, gy + 6], [gx + 14, gy + 7], [gx + 8, gy + 21], [gx + 6, gy + 23], [gx - 2, gy + 22], [gx - 3, gy + 19]], P.brown1);
     poly([[gx + 6, gy + 8], [gx + 11, gy + 9], [gx + 6, gy + 19], [gx + 1, gy + 19]], P.brown2);
@@ -1324,6 +1332,7 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
       var out = [{ id: 'gun', x: gx - 4, y: 212, w: 84, h: 26 }];
       if (hasDev) out.push({ id: 'device', x: 331, y: 217, w: 18, h: 24 });
       out.push({ id: 'ammo', x: 442, y: 214, w: 24, h: 30 });   // the box of shells
+      if (E.game.run.flags.posterInDrawer) out.push({ id: 'poster', x: gx + 25, y: 228, w: 47, h: 14 });   // below the barrel
       return out;
     },
     /**
@@ -8737,6 +8746,7 @@ window.EMIT.content.visitorList = [
       { note: ['scientist', 'His name isn\'t Kane. It\'s Emit. Prisoner 0-1, escaped custody in 2240. I have the poster.'] },
       { who: 'engineer', say: 'That\'s... I\'m sorry. That isn\'t mine.' },
       { narrate: 'He reached for it. I got there first and put it in the drawer, under the revolver.' },
+      { set: 'posterInDrawer' },
       { who: 'engineer', say: 'Badge. Here. As I said, I\'m on the list.' }
     ],
     inspect: [
@@ -9659,6 +9669,10 @@ window.EMIT.content.visitorList = [
         { text: 'Got it.', exit: true, steps: [
           { who: 'scientist', say: 'Good man. Not long now.' }
         ] },
+        // the same as "Got it.", as a stamp on the desk
+        { text: 'Got it.', action: 'letThrough', stamp: 'Let him go', label: 'Let him go back up', exit: true, steps: [
+          { who: 'scientist', say: 'Good man. Not long now.' }
+        ] },
         // the desk is open as usual: the Drawer, with the revolver and now the device in it
         { text: 'Try the device on him.', action: 'shutdown', label: 'Point the device at Kane', heading: 'in', exit: true, steps: [
           { narrate: 'I picked the box up, pointed it at him and pressed the button. Nothing happened.' },
@@ -9705,7 +9719,7 @@ window.EMIT.content.visitorList = [
           { narrate: 'The top folder said KANE, A. in someone else\'s handwriting.' },
           { note: ['scientist', 'Carrying folders labelled KANE, A. in someone else\'s handwriting, to burn them.'] }
         ] },
-        { text: 'Point the device at him.', requires: 'run:hasDevice', steps: [
+        { text: 'Point the device at him.', requires: 'run:hasDevice', action: 'shutdown', label: 'Point the device at Kane', heading: 'in', exit: true, steps: [
           { narrate: 'I picked up the grey box and pointed it at him. Just to see.' },
           { who: 'scientist', say: 'Don\'t—' },
           { narrate: 'I pressed it. Nothing happened. He flinched anyway, like a man who knew exactly what it does.' },
@@ -9717,6 +9731,19 @@ window.EMIT.content.visitorList = [
         ] },
         { text: 'I\'ll hold them.', exit: true, steps: [
           { who: 'scientist', say: 'I know you will. You always do.' }
+        ] },
+        // the same as "I'll hold them.", as a stamp on the desk
+        { text: 'I\'ll hold them.', action: 'letThrough', stamp: 'Let him go', label: 'Let him go back up', exit: true, steps: [
+          { who: 'scientist', say: 'I know you will. You always do.' }
+        ] },
+        { text: 'Shoot him.', action: 'shoot', exit: true, steps: [
+          { sfx: 'gunshot' },
+          { exit: 'fall' },
+          { narrate: 'Soot on his cuffs, folders all over my floor. Whatever he was finishing up there, he didn\'t.' },
+          { narrate: 'The police came at six. Nobody believes a night guard who shoots a scientist for working late.' },
+          { note: ['scientist', 'Shot Kane at ten to five. Nobody believed a word of it.'] },
+          { learn: 'shotKane' },
+          { reset: 'You shot the scientist with nothing to show for it.' }
         ] }
       ]
     } },
@@ -10103,6 +10130,7 @@ window.EMIT.content.visitorList = [
           // with the drawer open, the revolver and the device do what Fire and Use device do
           if (hit.id === 'gun') { var f = document.querySelector('#actions .stamp.armed'); if (f) f.click(); }
           else if (hit.id === 'device') { var d = document.querySelector('#actions .stamp.shutdown'); if (d) d.click(); }
+          else if (hit.id === 'poster') self.show({ zoom: 'wantedPoster', title: 'Wanted poster', text: 'WANTED: EMIT. Prisoner 0-1. Escaped custody, 2240. The photo: wild grey hair, glasses, a prison collar.' });
           else if (hit.id === 'ammo') self.show({ zoom: 'ammo', title: 'Shells', text: 'Six in the revolver and most of a box left. Should last me all night.' });
           else if (hit.id === 'drawer') { /* the drawer's felt: nothing under it to click */ }
           else if (hit.id === 'list') self.openList();
@@ -10195,7 +10223,7 @@ window.EMIT.content.visitorList = [
       // an open drawer covers the desk props behind it
       if (this.S.drawerOpen && this.mode !== 'line') {
         E.art.drawerProps().forEach(function (q) {
-          if (inside(q) && (q.id === 'ammo' || document.querySelector(q.id === 'gun' ? '#actions .stamp.armed' : '#actions .stamp.shutdown'))) hit = q;
+          if (inside(q) && (q.id === 'ammo' || q.id === 'poster' || document.querySelector(q.id === 'gun' ? '#actions .stamp.armed' : '#actions .stamp.shutdown'))) hit = q;
         });
         if (hit) return hit;
         if (inside({ x: 316, y: 206, w: 160, h: 64 })) return { id: 'drawer' };

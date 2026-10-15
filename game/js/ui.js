@@ -59,6 +59,7 @@
           // with the drawer open, the revolver and the device do what Fire and Use device do
           if (hit.id === 'gun') { var f = document.querySelector('#actions .stamp.armed'); if (f) f.click(); }
           else if (hit.id === 'device') { var d = document.querySelector('#actions .stamp.shutdown'); if (d) d.click(); }
+          else if (hit.id === 'poster') self.show({ zoom: 'wantedPoster', title: 'Wanted poster', text: 'WANTED: EMIT. Prisoner 0-1. Escaped custody, 2240. The photo: wild grey hair, glasses, a prison collar.' });
           else if (hit.id === 'ammo') self.show({ zoom: 'ammo', title: 'Shells', text: 'Six in the revolver and most of a box left. Should last me all night.' });
           else if (hit.id === 'drawer') { /* the drawer's felt: nothing under it to click */ }
           else if (hit.id === 'list') self.openList();
@@ -151,7 +152,7 @@
       // an open drawer covers the desk props behind it
       if (this.S.drawerOpen && this.mode !== 'line') {
         E.art.drawerProps().forEach(function (q) {
-          if (inside(q) && (q.id === 'ammo' || document.querySelector(q.id === 'gun' ? '#actions .stamp.armed' : '#actions .stamp.shutdown'))) hit = q;
+          if (inside(q) && (q.id === 'ammo' || q.id === 'poster' || document.querySelector(q.id === 'gun' ? '#actions .stamp.armed' : '#actions .stamp.shutdown'))) hit = q;
         });
         if (hit) return hit;
         if (inside({ x: 316, y: 206, w: 160, h: 64 })) return { id: 'drawer' };
