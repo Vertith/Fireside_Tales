@@ -232,7 +232,8 @@
 
   /* ---------------- the true ending: shot at the first flash ---------------- */
   // evidence the guard needs before the first-flash shot sticks (bible section 5)
-  var EVIDENCE = ['wantedPoster', 'wardenFile', 'now:sawWatch'];
+  // either the wanted poster or the warden's file, from an earlier loop, is enough (Adam's call)
+  var EVIDENCE = function (g) { return g.test('wantedPoster') || g.test('wardenFile'); };
 
   var kane = V.scientist;
   kane.questions.unshift({ id: 'emit', ask: 'Evening, Emit.', requires: 'wantedPoster', steps: [
@@ -250,8 +251,8 @@
   var oldShoot = kane.actions.shoot.steps;
   kane.actions.shoot = { steps: [
     { 'if': EVIDENCE, then: [{ run: 'epilogue' }], 'else': [
-      { 'if': 'wantedPoster', then: [
-        { narrate: 'I had a name off a poster and a bad feeling. A jury would want more. So did I.', noSkip: true }
+      { 'if': 'now:sawWatch', then: [
+        { narrate: 'I had a hunch off a watch. A jury would want more. So did I.', noSkip: true }
       ] }
     ].concat(oldShoot) }
   ] };
