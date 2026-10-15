@@ -192,7 +192,9 @@
     if (step.lightning) { if (!fast) await ui.lightning(step.lightning); return null; }
     if (step.sfx) { if (!fast) E.audio && E.audio.play(step.sfx); return null; }
     if (step.pause) { if (!fast) await ui.wait(step.pause); return null; }
-    if (step.clock) { ui.clock(step.clock); return null; }
+    // a new slot on the clock means a new arrival: a Skip pressed for the last visitor stops here,
+    // so the next one's arrival and greeting play (with their own Skip if heard before)
+    if (step.clock) { ui.clock(step.clock); this.skipping = false; return null; }
     if (step.crt) { ui.crt(step.crt); return null; }
     if (step.backdrop) {
       if (step.backdrop === 'body') this.run.flags.mess = true; else delete this.run.flags.mess;
@@ -290,7 +292,8 @@
       var self = this;
       var opts = spec.options.filter(function (o, i) {
         o._i = i;
-        return self.test(o.requires) && (o.exit || !chosen[i]);
+        // `stay` options can be picked again and again without ending the choice
+        return self.test(o.requires) && (o.exit || o.stay || !chosen[i]);
       });
       var pick = await this.ui.choices({
         prompt: spec.prompt,
@@ -451,6 +454,7 @@
     for (var i = 0; i < due.length; i++) {
       var q = due[i], v = E.content.visitors[q.id];
       if (!v) continue;
+      this.skipping = false;   // a returning visitor is a new arrival too
       var arrive = q.mode === 'return'
         ? (v.returnArrive || [{ sfx: 'door' }, { narrate: this.name(q.id) + ' was back, wetter than before and in no mood to wait.' }])
         : (v.arrive || [{ sfx: 'door' }]);

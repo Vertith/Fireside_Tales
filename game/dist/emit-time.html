@@ -2377,7 +2377,9 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
     if (step.lightning) { if (!fast) await ui.lightning(step.lightning); return null; }
     if (step.sfx) { if (!fast) E.audio && E.audio.play(step.sfx); return null; }
     if (step.pause) { if (!fast) await ui.wait(step.pause); return null; }
-    if (step.clock) { ui.clock(step.clock); return null; }
+    // a new slot on the clock means a new arrival: a Skip pressed for the last visitor stops here,
+    // so the next one's arrival and greeting play (with their own Skip if heard before)
+    if (step.clock) { ui.clock(step.clock); this.skipping = false; return null; }
     if (step.crt) { ui.crt(step.crt); return null; }
     if (step.backdrop) {
       if (step.backdrop === 'body') this.run.flags.mess = true; else delete this.run.flags.mess;
@@ -2475,7 +2477,8 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
       var self = this;
       var opts = spec.options.filter(function (o, i) {
         o._i = i;
-        return self.test(o.requires) && (o.exit || !chosen[i]);
+        // `stay` options can be picked again and again without ending the choice
+        return self.test(o.requires) && (o.exit || o.stay || !chosen[i]);
       });
       var pick = await this.ui.choices({
         prompt: spec.prompt,
@@ -2636,6 +2639,7 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
     for (var i = 0; i < due.length; i++) {
       var q = due[i], v = E.content.visitors[q.id];
       if (!v) continue;
+      this.skipping = false;   // a returning visitor is a new arrival too
       var arrive = q.mode === 'return'
         ? (v.returnArrive || [{ sfx: 'door' }, { narrate: this.name(q.id) + ' was back, wetter than before and in no mood to wait.' }])
         : (v.arrive || [{ sfx: 'door' }]);
@@ -8987,7 +8991,7 @@ window.EMIT.content.visitorList = [
         { narrate: 'I told him no. Not tonight, not any night.' },
         { who: 'futureyou', say: 'Lou. You won\'t stop me. I know, because I didn\'t.' },
         { narrate: 'He walked round the end of the desk and through the stairwell door, and I let him, because he\'d been right about everything else.' },
-        { exit: 'walk' },
+        { exit: 'right' },   // on into the building, not back out the doors
         { pause: 800 },
         { sfx: 'distant' },
         { narrate: 'Then the light.' },
@@ -9782,16 +9786,34 @@ window.EMIT.content.visitorList = [
           { sfx: 'flash' },
           { reset: 'Emit pulled the night back. Not here. Where it started.' }
         ] },
-        { text: 'Open the drawer.', exit: true, steps: [
-          { sfx: 'scratch' },
-          { narrate: 'I had the drawer open before I\'d decided anything.' },
+        // the desk works as it does for everyone: Fire and the device are in the drawer
+        { text: 'Shoot him.', action: 'shoot', exit: true, steps: [
           { sfx: 'gunshot' },
+          { exit: 'fall' },
           { narrate: 'He fell. On the way down his hand found his watch.' },
           { who: 'scientist', say: 'Not... here...' },
           { note: ['scientist', 'Shot him at dawn. He reached for his watch as he fell, and the night started over. "Not here."'] },
           { learn: 'shotEmitLate' },
           { sfx: 'flash' },
           { reset: 'He pulled the night back as he fell. It only sticks where it started.' }
+        ] },
+        { text: 'Try the device on him.', action: 'shutdown', requires: 'run:hasDevice', label: 'Point the device at him', stay: true, steps: [
+          { narrate: 'I pointed the grey box at him and pressed. He didn\'t even look at it.' },
+          { who: 'scientist', say: 'That was never for me, Lou. Ten minutes. Choose.' }
+        ] },
+        // Let through doesn't let him off the hook: he wants an answer
+        { text: 'Go on up.', action: 'letThrough', label: 'Let him go', stay: true, steps: [
+          { who: 'scientist', say: 'You have to make a choice, burn it, or keep it in the right hands.' },
+          { narrate: 'He didn\'t move. He wasn\'t going anywhere until I picked one.' }
+        ] },
+        { text: 'Get out.', action: 'turnAway', exit: true, steps: [
+          { who: 'scientist', say: 'So you\'ve decided to throw your lot in with them.' },
+          { narrate: 'He took something from his coat pocket. Not the grey box. Smaller, and it was already humming.' },
+          { narrate: 'He pointed it at me, and the lobby went somewhere I couldn\'t follow.' },
+          { note: ['scientist', 'Turned him away at dawn. He used something on me, and that was the end of my night.'] },
+          { sfx: 'flash' },
+          { flash: 'big' },
+          { end: 'emitTurned' }
         ] },
         { text: 'No. Not like this.', exit: true, steps: [
           { who: 'scientist', say: 'Then I\'ll find a guard who says yes.' },
@@ -9943,6 +9965,8 @@ window.EMIT.content.visitorList = [
       text: 'You held the desk while he burned it all. Time travel never gets invented. Emit is stranded in your year, and nobody is coming for him. There are other ways to end this night, and one of them starts at the first flash.' },
     emitRules: { eyebrow: 'Every night after', title: 'The right hands.',
       text: 'You held the desk while Emit took the machine and the name. You still sit the desk. The visitors still come from other times. Now they come to see him, and you decide who gets up the stairs. There are other ways to end this night, and one of them starts at the first flash.' },
+    emitTurned: { eyebrow: '6:05 AM', title: 'Thrown in with them.',
+      text: 'You sent Emit away at dawn, and he answered with something from his own century. Nobody would find the guard who sat the desk that night. There are other ways to end this night, and one of them starts at the first flash.' },
     unfinished: { eyebrow: '', title: 'To be continued.', text: 'This part of the night is still being written.' }
   };
 })();
@@ -10552,7 +10576,8 @@ window.EMIT.content.visitorList = [
             return { id: a.o.action, stamp: a.o.stamp, label: a.o.label, index: a.i };
           }), function (v) {
             if (v.id === 'shoot') self.drawerTimer2 = setTimeout(function () { self.setDrawer(false); }, 2600);
-            else if (v.id === 'shutdown') self.drawerTimer2 = setTimeout(function () { self.setDrawer(false); }, 700);
+            // the device closes the drawer straight away here, so the stamps redrawn for the
+            // same choice (a device try doesn't end it) match a shut drawer
             else self.setDrawer(false);
             var hit = acts.filter(function (a) { return a.o.action === v.id; })[0];
             pick(hit.i);

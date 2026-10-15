@@ -538,7 +538,7 @@
         { narrate: 'I told him no. Not tonight, not any night.' },
         { who: 'futureyou', say: 'Lou. You won\'t stop me. I know, because I didn\'t.' },
         { narrate: 'He walked round the end of the desk and through the stairwell door, and I let him, because he\'d been right about everything else.' },
-        { exit: 'walk' },
+        { exit: 'right' },   // on into the building, not back out the doors
         { pause: 800 },
         { sfx: 'distant' },
         { narrate: 'Then the light.' },

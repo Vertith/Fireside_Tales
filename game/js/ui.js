@@ -474,7 +474,8 @@
             return { id: a.o.action, stamp: a.o.stamp, label: a.o.label, index: a.i };
           }), function (v) {
             if (v.id === 'shoot') self.drawerTimer2 = setTimeout(function () { self.setDrawer(false); }, 2600);
-            else if (v.id === 'shutdown') self.drawerTimer2 = setTimeout(function () { self.setDrawer(false); }, 700);
+            // the device closes the drawer straight away here, so the stamps redrawn for the
+            // same choice (a device try doesn't end it) match a shut drawer
             else self.setDrawer(false);
             var hit = acts.filter(function (a) { return a.o.action === v.id; })[0];
             pick(hit.i);

@@ -160,16 +160,34 @@
           { sfx: 'flash' },
           { reset: 'Emit pulled the night back. Not here. Where it started.' }
         ] },
-        { text: 'Open the drawer.', exit: true, steps: [
-          { sfx: 'scratch' },
-          { narrate: 'I had the drawer open before I\'d decided anything.' },
+        // the desk works as it does for everyone: Fire and the device are in the drawer
+        { text: 'Shoot him.', action: 'shoot', exit: true, steps: [
           { sfx: 'gunshot' },
+          { exit: 'fall' },
           { narrate: 'He fell. On the way down his hand found his watch.' },
           { who: 'scientist', say: 'Not... here...' },
           { note: ['scientist', 'Shot him at dawn. He reached for his watch as he fell, and the night started over. "Not here."'] },
           { learn: 'shotEmitLate' },
           { sfx: 'flash' },
           { reset: 'He pulled the night back as he fell. It only sticks where it started.' }
+        ] },
+        { text: 'Try the device on him.', action: 'shutdown', requires: 'run:hasDevice', label: 'Point the device at him', stay: true, steps: [
+          { narrate: 'I pointed the grey box at him and pressed. He didn\'t even look at it.' },
+          { who: 'scientist', say: 'That was never for me, Lou. Ten minutes. Choose.' }
+        ] },
+        // Let through doesn't let him off the hook: he wants an answer
+        { text: 'Go on up.', action: 'letThrough', label: 'Let him go', stay: true, steps: [
+          { who: 'scientist', say: 'You have to make a choice, burn it, or keep it in the right hands.' },
+          { narrate: 'He didn\'t move. He wasn\'t going anywhere until I picked one.' }
+        ] },
+        { text: 'Get out.', action: 'turnAway', exit: true, steps: [
+          { who: 'scientist', say: 'So you\'ve decided to throw your lot in with them.' },
+          { narrate: 'He took something from his coat pocket. Not the grey box. Smaller, and it was already humming.' },
+          { narrate: 'He pointed it at me, and the lobby went somewhere I couldn\'t follow.' },
+          { note: ['scientist', 'Turned him away at dawn. He used something on me, and that was the end of my night.'] },
+          { sfx: 'flash' },
+          { flash: 'big' },
+          { end: 'emitTurned' }
         ] },
         { text: 'No. Not like this.', exit: true, steps: [
           { who: 'scientist', say: 'Then I\'ll find a guard who says yes.' },
@@ -321,6 +339,8 @@
       text: 'You held the desk while he burned it all. Time travel never gets invented. Emit is stranded in your year, and nobody is coming for him. There are other ways to end this night, and one of them starts at the first flash.' },
     emitRules: { eyebrow: 'Every night after', title: 'The right hands.',
       text: 'You held the desk while Emit took the machine and the name. You still sit the desk. The visitors still come from other times. Now they come to see him, and you decide who gets up the stairs. There are other ways to end this night, and one of them starts at the first flash.' },
+    emitTurned: { eyebrow: '6:05 AM', title: 'Thrown in with them.',
+      text: 'You sent Emit away at dawn, and he answered with something from his own century. Nobody would find the guard who sat the desk that night. There are other ways to end this night, and one of them starts at the first flash.' },
     unfinished: { eyebrow: '', title: 'To be continued.', text: 'This part of the night is still being written.' }
   };
 })();
