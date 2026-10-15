@@ -9837,17 +9837,17 @@ window.EMIT.content.visitorList = [
           { end: 'emit' }
         ] },
         { text: 'Keep it in the right hands.', exit: true, steps: [
-          { who: 'scientist', say: 'I knew you\'d understand. You\'ve seen what comes through those doors.' },
+          { who: 'scientist', say: 'I knew you\'d understand. You\'ve seen what comes through those doors. We need to take this for ourselves.' },
           { who: 'scientist', say: 'Hold the desk. Nobody goes up. Nobody comes down but me.' },
           { exit: 'right' },
           { pause: 900 },
           { clock: '6:20 AM' },
           { crt: ['CAM 03 LAB HALL', '> MOTION: 2', '> MOTION: 1'] },
-          { narrate: 'The camera on the fourth floor showed two men at the end of the hall. Then it showed one.' },
+          { narrate: 'The camera on the fourth floor showed two men at the end of the hall. The man I\'d been talking to pulled out a device.' },
           { enter: 'scientist', from: 'right' },
-          { narrate: 'He came down at half six with a coffee cup that wasn\'t his and a badge that said KANE, and this time it was true.' },
-          { who: 'scientist', say: 'Dr. Aldous Kane. Fourth floor. You\'ll want to get used to the name, Lou. Everyone will.' },
-          { narrate: 'No more flashes after that. Nobody came looking for him. Nobody who came looking ever got past me.' },
+          { narrate: 'He came down at half six with a coffee cup that wasn\'t his, and the badge that said KANE had a drop of blood on it.' },
+          { who: 'scientist', say: 'Dr. Aldous Kane. Fourth floor. The world will need to get comfortable with the name, Lou. Everyone will.' },
+          { narrate: 'No more flashes after that. Nobody came looking for him that we didn\'t allow. Time travel had its perks.' },
           { note: ['scientist', 'Held the desk while he went up to the real Kane. He came down alone, with the name and the machine.'] },
           { learn: 'emitRules' },
           { end: 'emitRules' }
@@ -9964,7 +9964,7 @@ window.EMIT.content.visitorList = [
     emit: { eyebrow: '7:30 AM', title: 'Clean slate.',
       text: 'You held the desk while he burned it all. Time travel never gets invented. Emit is stranded in your year, and nobody is coming for him.' },
     emitRules: { eyebrow: 'Every night after', title: 'The right hands.',
-      text: 'You held the desk while Emit took the machine and the name. You still sit the desk. The visitors still come from other times. Now they come to see him, and you decide who gets up the stairs. There are other ways to end this night, and one of them starts at the first flash.' },
+      text: 'You held the desk while Emit took the machine and the name. You still sit the desk. The visitors still come from other times. Now they come to see him, and you decide who gets up the stairs.' },
     emitTurned: { eyebrow: '6:05 AM', title: 'Thrown in with them.',
       text: 'You sent Emit away at dawn, and he answered with something from his own century. Nobody would find the guard who sat the desk that night. There are other ways to end this night, and one of them starts at the first flash.' },
     unfinished: { eyebrow: '', title: 'To be continued.', text: 'This part of the night is still being written.' }
