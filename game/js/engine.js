@@ -242,8 +242,9 @@
 
   /** One line of dialog or narration. Lines heard in an earlier loop can be skipped. */
   Game.prototype.line = async function (who, text, ctx, gen, step) {
-    text = text.replace('{loops}', String(this.memory.loop - 1)).replace('{loop}', String(this.memory.loop));
+    // the key is taken before {loops} is filled in, so a line that counts loops is still "heard before"
     var key = (step.key || ctx) + ':' + hash((who || '') + '|' + text);
+    text = text.replace('{loops}', String(this.memory.loop - 1)).replace('{loop}', String(this.memory.loop));
     var first = this.memory.heard[key];
     var heardBefore = !!first && first < this.memory.loop && !step.noSkip;
     if (!first) { this.memory.heard[key] = this.memory.loop; this.save(); }

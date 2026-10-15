@@ -236,6 +236,23 @@
   var EVIDENCE = function (g) { return g.test('wantedPoster') || g.test('wardenFile'); };
 
   var kane = V.scientist;
+  // after the warden explains the tether (an earlier loop), the watch is the way out
+  kane.questions.unshift({ id: 'shootWatch', ask: 'Shoot the watch.', requires: 'knowsTether', steps: [
+    { sfx: 'scratch' },
+    { narrate: 'I had the drawer open and the revolver up before he got to the stairs. I aimed for his wrist.' },
+    { sfx: 'gunshot' },
+    { narrate: 'The cheap black watch came apart in a spray of sparks. He looked at his bare wrist like a man who\'d lost a door.' },
+    { note: ['scientist', 'Shot the watch off his wrist first, like the warden said. Then him.'] },
+    { set: 'watchShot' },
+    { run: 'epilogue' }
+  ] }, { id: 'askWatch', ask: 'Give me the watch.', requires: 'knowsTether', steps: [
+    { narrate: 'I held out my hand for it.' },
+    { who: 'scientist', say: 'So you\'ve thrown your lot in with them.' },
+    { narrate: 'He touched the watch instead. I knew the light before it came.' },
+    { note: ['scientist', 'Asked for his watch. He knew why, and pulled the night back.'] },
+    { sfx: 'flash' },
+    { reset: 'You asked for the watch. He knew what that meant.' }
+  ] });
   kane.questions.unshift({ id: 'emit', ask: 'Evening, Emit.', requires: 'wantedPoster', steps: [
     { narrate: 'He stopped dead, halfway to the stairs.' },
     { who: 'scientist', say: '...Who told you that name?' },
@@ -261,7 +278,11 @@
     { sfx: 'gunshot' },
     { exit: 'fall' },
     { backdrop: 'body' },
-    { narrate: 'He went down right where he\'d landed. On his wrist the cheap black watch sparked, tried to pull the night back, and found nowhere earlier to go.' },
+    { 'if': 'run:watchShot', then: [
+      { narrate: 'He went down right where he\'d landed. Nothing pulled the night back. There was nothing left on his wrist to pull it with.' }
+    ], 'else': [
+      { narrate: 'He went down right where he\'d landed. On his wrist the cheap black watch sparked, tried to pull the night back, and found nowhere earlier to go.' }
+    ] },
     { pause: 900 },
     { clock: '6:12 AM' },
     { crt: ['CAM 01 LOBBY', '> SIGNAL: CLEAR', '> REC'] },

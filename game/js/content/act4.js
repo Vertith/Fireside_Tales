@@ -680,8 +680,10 @@
         { who: 'warden', say: 'So you\'ve seen the poster. Then you\'re further along than most.' }
       ].concat(BRIEFING) },
       { id: 'shot', ask: 'I shot him once. It didn\'t take.', requires: 'shotKane', steps: [
-        { who: 'warden', say: 'No. Not where you did it. Not when.' },
-        { note: ['warden', 'Shooting him mid-night doesn\'t stick. "Not where you did it. Not when."'] }
+        { who: 'warden', say: 'Next time you need to get him to take his watch off before you shoot.' },
+        { who: 'warden', say: 'It\'s the tether, you were close enough when it went off that you\'re in the loop with him. If you don\'t get that watch it won\'t matter what you do.' },
+        { note: ['warden', 'Shooting him doesn\'t stick while he has the watch. It\'s the tether, and I\'m in the loop with him. Get the watch first.'] },
+        { learn: 'knowsTether' }
       ] }
     ],
     actions: {
