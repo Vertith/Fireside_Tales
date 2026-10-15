@@ -313,7 +313,7 @@
       chosen[opt._i] = true;
       if (opt.action) {
         this.ui.setTranscript('', '');
-        this.run.heading = opt.action === 'letThrough' ? 'in' : 'out';
+        this.run.heading = opt.heading || (opt.action === 'letThrough' ? 'in' : 'out');
         this.run.shooting = opt.action === 'shoot';
       }
       var askKey = ctx + '.ask.' + opt._i;

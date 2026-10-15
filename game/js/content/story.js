@@ -53,6 +53,21 @@
         ] },
         { text: 'Got it.', exit: true, steps: [
           { who: 'scientist', say: 'Good man. Not long now.' }
+        ] },
+        // the desk is open as usual: the Drawer, with the revolver and now the device in it
+        { text: 'Try the device on him.', action: 'shutdown', label: 'Point the device at Kane', heading: 'in', exit: true, steps: [
+          { narrate: 'I picked the box up, pointed it at him and pressed the button. Nothing happened.' },
+          { who: 'scientist', say: 'Jumpy guy aren\'t you? Well, tonight it will serve you well. Good man.' },
+          { note: ['scientist', 'Tried his device on him the second he handed it over. Nothing happened. He liked that I was jumpy.'] }
+        ] },
+        { text: 'Shoot him.', action: 'shoot', exit: true, steps: [
+          { sfx: 'gunshot' },
+          { exit: 'fall' },
+          { narrate: 'He\'d just handed me a way to tell people from machines, and I used the other thing in the drawer.' },
+          { narrate: 'The police came at four. Nobody believes a night guard who shoots a scientist for being helpful.' },
+          { note: ['scientist', 'Shot Kane after he gave me the device. Nobody believed a word of it.'] },
+          { learn: 'shotKane' },
+          { reset: 'You shot the scientist with nothing to show for it.' }
         ] }
       ]
     } },
