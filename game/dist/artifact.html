@@ -9625,7 +9625,7 @@ window.EMIT.content.visitorList = [
  *   device    end of act two: Kane hands over the shutdown device
  *   holdOff   end of act three: "nearly done, hold them off a bit longer"
  *   pitch     end of act four: burn it (Emit stranded, not hunted) or keep it in "the right hands" (Emit kills the real Kane)
- *   epilogue  the true ending: Emit shot at the first flash, with the evidence
+ *   epilogue  the true ending: the watch shot off Emit's wrist, then Emit
  * The first-flash shot itself is wired into the scientist's desk below.
  * Endings for the end card are in E.content.endings.
  */
@@ -9854,7 +9854,7 @@ window.EMIT.content.visitorList = [
 
   /* ---------------- the true ending: shot at the first flash ---------------- */
   // evidence the guard needs before the first-flash shot sticks (bible section 5)
-  // either the wanted poster or the warden's file, from an earlier loop, is enough (Adam's call)
+  // either the wanted poster or the warden's file, from an earlier loop; it still doesn't stick while he wears the watch
   var EVIDENCE = function (g) { return g.test('wantedPoster') || g.test('wardenFile'); };
 
   var kane = V.scientist;
@@ -9889,7 +9889,17 @@ window.EMIT.content.visitorList = [
 
   var oldShoot = kane.actions.shoot.steps;
   kane.actions.shoot = { steps: [
-    { 'if': EVIDENCE, then: [{ run: 'epilogue' }], 'else': [
+    // with the poster or the file he goes down, but the watch still pulls the night back (Adam: watch only)
+    { 'if': EVIDENCE, then: [
+      { sfx: 'gunshot' },
+      { exit: 'fall' },
+      { narrate: 'He went down right where he\'d landed. I had the name and the proof, and for a second I thought that was enough.' },
+      { narrate: 'On his wrist the cheap black watch sparked. The light came up through the floor.' },
+      { note: ['scientist', 'Shot him with the proof in hand. The watch on his wrist pulled the night back anyway.'] },
+      { learn: 'shotKane' },
+      { sfx: 'flash' },
+      { reset: 'The watch pulled the night back. The proof wasn\'t enough.' }
+    ], 'else': [
       { 'if': 'now:sawWatch', then: [
         { narrate: 'I had a hunch off a watch. A jury would want more. So did I.', noSkip: true }
       ] }
@@ -9900,11 +9910,7 @@ window.EMIT.content.visitorList = [
     { sfx: 'gunshot' },
     { exit: 'fall' },
     { backdrop: 'body' },
-    { 'if': 'run:watchShot', then: [
-      { narrate: 'He went down right where he\'d landed. Nothing pulled the night back. There was nothing left on his wrist to pull it with.' }
-    ], 'else': [
-      { narrate: 'He went down right where he\'d landed. On his wrist the cheap black watch sparked, tried to pull the night back, and found nowhere earlier to go.' }
-    ] },
+    { narrate: 'He went down right where he\'d landed. Nothing pulled the night back. There was nothing left on his wrist to pull it with.' },
     { pause: 900 },
     { clock: '6:12 AM' },
     { crt: ['CAM 01 LOBBY', '> SIGNAL: CLEAR', '> REC'] },
@@ -9913,7 +9919,7 @@ window.EMIT.content.visitorList = [
     { 'if': function () { return !!V.warden && !!E.art.visitors.warden; }, then: [
       { sfx: 'door' },
       { enter: 'warden' },
-      { narrate: 'A long coat came in out of the last of the rain. He knelt by the body, unbuckled the watch, and pocketed it.' },
+      { narrate: 'A long coat came in out of the last of the rain. He knelt by the body, picked what was left of the watch up off the floor, and pocketed it.' },
       { who: 'warden', say: 'Recall anchor. Prison issue, stolen.' },
       { who: 'warden', say: 'Every time one of us got near him, he pulled the whole night back like a tablecloth.' },
       { who: 'warden', say: 'You were standing on the tablecloth.' },
