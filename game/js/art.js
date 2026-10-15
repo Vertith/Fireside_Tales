@@ -339,6 +339,18 @@
     g.restore();
   }
 
+  // the sister's supper, left on the counter when she's sent away, until Kane collects it
+  function leftBag() {
+    var f = E.game && E.game.run && E.game.run.flags;
+    if (!f || !f.sisterBag || f.bagTaken) return;
+    var x = 128, y = 150, hl = S.hover === 'bag';
+    R(x + 1, y + 17, 15, 2, P.night0);                                   // shadow on the counter
+    poly([[x, y + 4], [x + 14, y + 4], [x + 15, y + 17], [x - 1, y + 17]], hl ? '#c79a62' : '#b0844f');
+    R(x + 1, y, 12, 5, '#c79a62'); R(x + 1, y + 2, 12, 1, '#8a6238');    // folded-over top
+    R(x + 3, y + 9, 8, 1, P.night0); R(x + 3, y + 11, 6, 1, P.night0);   // ALDOUS in marker
+    R(x + 13, y + 5, 1, 12, '#8a6238');
+  }
+
   function tally(x, y) {
     var n = S.tally;
     for (var i = 0; i < n; i++) {
@@ -621,6 +633,15 @@
   /* ---------- inspection close-ups (32x24, scaled up in the zoom panel) ---------- */
   function fill(z, x, y, w, h, col) { z.fillStyle = col; z.fillRect(x, y, w, h); }
   var zooms = {
+    lamp: function (z) {
+      fill(z, 0, 0, 32, 24, P.night1);
+      fill(z, 6, 0, 22, 10, P.lamp3); fill(z, 2, 12, 28, 12, P.wood2);
+      var s = g; g = z;
+      poly([[8, 3], [24, 2], [22, 10], [10, 11]], P.night2);
+      g = s;
+      fill(z, 11, 10, 10, 2, P.lamp4); fill(z, 14, 12, 4, 2, P.paper);
+      fill(z, 21, 10, 2, 10, P.night3); fill(z, 15, 20, 12, 3, P.night3); fill(z, 15, 20, 12, 1, P.steel);
+    },
     // Adam's call: a plain black digital watch, no future colour; 12.03.40 reads as 2240 on a replay
     watch: function (z) {
       fill(z, 0, 0, 32, 24, P.night1);
@@ -857,6 +878,7 @@
       g.restore();
     }
     counterAndDesk();
+    leftBag();
     cutFrame();
 
     if (S.flashT >= 0) {
@@ -888,8 +910,19 @@
     props: [
       { id: 'list', x: 320, y: 184, w: 50, h: 60, label: 'Visitor list' },
       { id: 'notebook', x: 426, y: 192, w: 42, h: 30, label: "Guard's notebook" },
-      { id: 'radio', x: 370, y: 192, w: 46, h: 28, label: 'Desk radio' }
+      { id: 'radio', x: 370, y: 192, w: 46, h: 28, label: 'Desk radio' },
+      { id: 'lamp', x: 155, y: 180, w: 25, h: 60, label: 'Desk lamp' },
+      { id: 'bag', x: 126, y: 148, w: 19, h: 22, label: 'Lunch bag', when: function () {
+        var f = E.game && E.game.run && E.game.run.flags; return !!(f && f.sisterBag && !f.bagTaken); } }
     ],
+    // what you can click inside the open drawer (native coordinates, fully open)
+    drawerProps: function () {
+      var hasDev = !!(E.game && E.game.run && E.game.run.flags && E.game.run.flags.hasDevice);
+      var gx = 320 + (hasDev ? 40 : 34);
+      var out = [{ id: 'gun', x: gx - 4, y: 212, w: 84, h: 26 }];
+      if (hasDev) out.push({ id: 'device', x: 331, y: 217, w: 18, h: 24 });
+      return out;
+    },
     /**
      * Drawing kit for visitor files outside art.js. Use these inside a
      * visitors[id] draw function (they draw on the frame being rendered), or

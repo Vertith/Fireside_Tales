@@ -218,7 +218,9 @@
       { id: 'quarter', ask: 'What\'s the quarter for?', requires: 'saw:hippieQuarter', steps: [
         { who: 'hippie', say: 'For a coffee, if you\'ve got a pot going. Keep the change. I\'m feeling generous.' },
         { narrate: 'The machine down the hall wants seventy-five cents and gives you mud.' },
-        { note: ['hippie', 'Offered me a quarter for a coffee and told me to keep the change. Called it generous.'] }
+        { narrate: 'He pressed it into my hand anyway. I put it in my pocket, but the face on it looked familiar.' },
+        { set: 'gotQuarter' },
+        { note: ['hippie', 'Gave me a quarter for a coffee and told me to keep the change. It\'s in my pocket. The face on it looked familiar.'] }
       ] },
       { id: 'email', ask: 'Got an email address? In case Dr. Kane wants to reach you.', requires: 'saw:hippieNotepad', steps: [
         { who: 'hippie', say: 'My what?' },
@@ -268,8 +270,10 @@
         { narrate: 'I told him the doctor wasn\'t talking to the press tonight.' },
         { who: 'hippie', say: 'That\'s cool. That\'s cool. History doesn\'t need a press pass, brother.' },
         { exit: 'walk' },
-        { narrate: 'He left his quarter on the counter. I didn\'t pick it up.' },
-        { note: ['hippie', 'Turned him away. He went peacefully. Left the quarter.'] }
+        { 'if': '!run:gotQuarter', then: [
+          { narrate: 'He left his quarter on the counter. I didn\'t pick it up.' }
+        ] },
+        { note: ['hippie', 'Turned him away. He went peacefully.'] }
       ] },
       shoot: { steps: [
         { sfx: 'gunshot' },

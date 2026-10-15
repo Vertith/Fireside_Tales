@@ -724,6 +724,18 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
     g.restore();
   }
 
+  // the sister's supper, left on the counter when she's sent away, until Kane collects it
+  function leftBag() {
+    var f = E.game && E.game.run && E.game.run.flags;
+    if (!f || !f.sisterBag || f.bagTaken) return;
+    var x = 128, y = 150, hl = S.hover === 'bag';
+    R(x + 1, y + 17, 15, 2, P.night0);                                   // shadow on the counter
+    poly([[x, y + 4], [x + 14, y + 4], [x + 15, y + 17], [x - 1, y + 17]], hl ? '#c79a62' : '#b0844f');
+    R(x + 1, y, 12, 5, '#c79a62'); R(x + 1, y + 2, 12, 1, '#8a6238');    // folded-over top
+    R(x + 3, y + 9, 8, 1, P.night0); R(x + 3, y + 11, 6, 1, P.night0);   // ALDOUS in marker
+    R(x + 13, y + 5, 1, 12, '#8a6238');
+  }
+
   function tally(x, y) {
     var n = S.tally;
     for (var i = 0; i < n; i++) {
@@ -1006,6 +1018,15 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
   /* ---------- inspection close-ups (32x24, scaled up in the zoom panel) ---------- */
   function fill(z, x, y, w, h, col) { z.fillStyle = col; z.fillRect(x, y, w, h); }
   var zooms = {
+    lamp: function (z) {
+      fill(z, 0, 0, 32, 24, P.night1);
+      fill(z, 6, 0, 22, 10, P.lamp3); fill(z, 2, 12, 28, 12, P.wood2);
+      var s = g; g = z;
+      poly([[8, 3], [24, 2], [22, 10], [10, 11]], P.night2);
+      g = s;
+      fill(z, 11, 10, 10, 2, P.lamp4); fill(z, 14, 12, 4, 2, P.paper);
+      fill(z, 21, 10, 2, 10, P.night3); fill(z, 15, 20, 12, 3, P.night3); fill(z, 15, 20, 12, 1, P.steel);
+    },
     // Adam's call: a plain black digital watch, no future colour; 12.03.40 reads as 2240 on a replay
     watch: function (z) {
       fill(z, 0, 0, 32, 24, P.night1);
@@ -1242,6 +1263,7 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
       g.restore();
     }
     counterAndDesk();
+    leftBag();
     cutFrame();
 
     if (S.flashT >= 0) {
@@ -1273,8 +1295,19 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
     props: [
       { id: 'list', x: 320, y: 184, w: 50, h: 60, label: 'Visitor list' },
       { id: 'notebook', x: 426, y: 192, w: 42, h: 30, label: "Guard's notebook" },
-      { id: 'radio', x: 370, y: 192, w: 46, h: 28, label: 'Desk radio' }
+      { id: 'radio', x: 370, y: 192, w: 46, h: 28, label: 'Desk radio' },
+      { id: 'lamp', x: 155, y: 180, w: 25, h: 60, label: 'Desk lamp' },
+      { id: 'bag', x: 126, y: 148, w: 19, h: 22, label: 'Lunch bag', when: function () {
+        var f = E.game && E.game.run && E.game.run.flags; return !!(f && f.sisterBag && !f.bagTaken); } }
     ],
+    // what you can click inside the open drawer (native coordinates, fully open)
+    drawerProps: function () {
+      var hasDev = !!(E.game && E.game.run && E.game.run.flags && E.game.run.flags.hasDevice);
+      var gx = 320 + (hasDev ? 40 : 34);
+      var out = [{ id: 'gun', x: gx - 4, y: 212, w: 84, h: 26 }];
+      if (hasDev) out.push({ id: 'device', x: 331, y: 217, w: 18, h: 24 });
+      return out;
+    },
     /**
      * Drawing kit for visitor files outside art.js. Use these inside a
      * visitors[id] draw function (they draw on the frame being rendered), or
@@ -3638,9 +3671,11 @@ window.EMIT.content.visitorList = [
       turnAway: { steps: [
         { narrate: 'I told her the doctor wasn\'t to be disturbed, not even for meatloaf.' },
         { who: 'sister', say: 'Not even for his own sister? What has he got going on up there?' },
-        { narrate: 'She set the bag on the counter, thought better of it, and took it with her.' },
+        { narrate: 'She set the bag on the counter and pushed it at me.' },
+        { who: 'sister', say: 'Fine. I\'m leaving this for Aldous. Make sure he gets it, and make sure he eats it.' },
+        { set: 'sisterBag' },
         { exit: 'walk' },
-        { note: ['sister', 'Turned her away. She took the supper back to the wagon.'] }
+        { note: ['sister', 'Turned her away. She left his supper on the counter for him.'] }
       ] },
       shoot: { steps: [
         { sfx: 'gunshot' },
@@ -6066,7 +6101,9 @@ window.EMIT.content.visitorList = [
       { id: 'quarter', ask: 'What\'s the quarter for?', requires: 'saw:hippieQuarter', steps: [
         { who: 'hippie', say: 'For a coffee, if you\'ve got a pot going. Keep the change. I\'m feeling generous.' },
         { narrate: 'The machine down the hall wants seventy-five cents and gives you mud.' },
-        { note: ['hippie', 'Offered me a quarter for a coffee and told me to keep the change. Called it generous.'] }
+        { narrate: 'He pressed it into my hand anyway. I put it in my pocket, but the face on it looked familiar.' },
+        { set: 'gotQuarter' },
+        { note: ['hippie', 'Gave me a quarter for a coffee and told me to keep the change. It\'s in my pocket. The face on it looked familiar.'] }
       ] },
       { id: 'email', ask: 'Got an email address? In case Dr. Kane wants to reach you.', requires: 'saw:hippieNotepad', steps: [
         { who: 'hippie', say: 'My what?' },
@@ -6116,8 +6153,10 @@ window.EMIT.content.visitorList = [
         { narrate: 'I told him the doctor wasn\'t talking to the press tonight.' },
         { who: 'hippie', say: 'That\'s cool. That\'s cool. History doesn\'t need a press pass, brother.' },
         { exit: 'walk' },
-        { narrate: 'He left his quarter on the counter. I didn\'t pick it up.' },
-        { note: ['hippie', 'Turned him away. He went peacefully. Left the quarter.'] }
+        { 'if': '!run:gotQuarter', then: [
+          { narrate: 'He left his quarter on the counter. I didn\'t pick it up.' }
+        ] },
+        { note: ['hippie', 'Turned him away. He went peacefully.'] }
       ] },
       shoot: { steps: [
         { sfx: 'gunshot' },
@@ -9563,6 +9602,14 @@ window.EMIT.content.visitorList = [
     { crt: ['CAM 03 LAB HALL', '> MOTION: 1', '> DOOR B: OPEN'] },
     { narrate: 'The stairwell door again. Kane, with his sleeves rolled and a smell on him like a burnt-out fuse.' },
     { enter: 'scientist', from: 'right' },
+    // the supper his sister left, if Lou sent her away
+    { 'if': 'run:sisterBag', then: [
+      { narrate: 'He spotted the paper bag on the counter and picked it up. Peeked inside.' },
+      { who: 'scientist', say: 'Meatloaf. I hate meatloaf.' },
+      { narrate: 'His own sister\'s meatloaf. She\'d driven it over in the rain.' },
+      { note: ['scientist', 'Picked up the supper his sister left. Said he hates meatloaf. She made it for him.'] },
+      { set: 'bagTaken' }
+    ] },
     { who: 'scientist', say: 'How are we doing? Don\'t answer. You\'re still here, so we\'re doing fine.' },
     { who: 'scientist', say: 'It\'s going to get stranger from here. Some of them won\'t be people at all.' },
     { narrate: 'He set a grey plastic box on the desk. The size of a pager, one button on it.' },
@@ -10010,6 +10057,7 @@ window.EMIT.content.visitorList = [
       // desk props and advancing by clicking the booth
       canvas.addEventListener('mousemove', function (e) {
         var p = self.native(e), hit = self.propAt(p);
+        if (hit && hit.id === 'drawer') hit = null;
         self.S.hover = hit ? hit.id : null;
         canvas.style.cursor = hit ? 'pointer' : (self.mode === 'line' && E.art.inView(p) ? 'pointer' : 'default');
       });
@@ -10017,8 +10065,14 @@ window.EMIT.content.visitorList = [
       canvas.addEventListener('click', function (e) {
         var p = self.native(e), hit = self.propAt(p);
         if (hit) {
-          if (hit.id === 'list') self.openList();
+          // with the drawer open, the revolver and the device do what Fire and Use device do
+          if (hit.id === 'gun') { var f = document.querySelector('#actions .stamp.armed'); if (f) f.click(); }
+          else if (hit.id === 'device') { var d = document.querySelector('#actions .stamp.shutdown'); if (d) d.click(); }
+          else if (hit.id === 'drawer') { /* the drawer's felt: nothing under it to click */ }
+          else if (hit.id === 'list') self.openList();
           else if (hit.id === 'radio') self.radio();
+          else if (hit.id === 'lamp') self.show({ zoom: 'lamp', title: 'Desk lamp', text: 'My trusty desk lamp, its been here as long as I have and the bulb is still going strong.' });
+          else if (hit.id === 'bag') self.show({ zoom: 'sisterBag', title: 'Lunch bag', text: 'Her brown paper bag, still on the counter. ALDOUS in marker. It smells like meatloaf.' });
           else self.openNotebook();
           return;
         }
@@ -10101,9 +10155,17 @@ window.EMIT.content.visitorList = [
     },
 
     propAt: function (p) {
-      var hit = null;
+      var hit = null, inside = function (q) { return p.x >= q.x && p.x < q.x + q.w && p.y >= q.y && p.y < q.y + q.h; };
+      // an open drawer covers the desk props behind it
+      if (this.S.drawerOpen && this.mode !== 'line') {
+        E.art.drawerProps().forEach(function (q) {
+          if (inside(q) && document.querySelector(q.id === 'gun' ? '#actions .stamp.armed' : '#actions .stamp.shutdown')) hit = q;
+        });
+        if (hit) return hit;
+        if (inside({ x: 316, y: 206, w: 160, h: 64 })) return { id: 'drawer' };
+      }
       E.art.props.forEach(function (q) {
-        if (p.x >= q.x && p.x < q.x + q.w && p.y >= q.y && p.y < q.y + q.h) hit = q;
+        if (inside(q) && (!q.when || q.when())) hit = q;
       });
       return hit;
     },

@@ -48,6 +48,7 @@
       // desk props and advancing by clicking the booth
       canvas.addEventListener('mousemove', function (e) {
         var p = self.native(e), hit = self.propAt(p);
+        if (hit && hit.id === 'drawer') hit = null;
         self.S.hover = hit ? hit.id : null;
         canvas.style.cursor = hit ? 'pointer' : (self.mode === 'line' && E.art.inView(p) ? 'pointer' : 'default');
       });
@@ -55,8 +56,14 @@
       canvas.addEventListener('click', function (e) {
         var p = self.native(e), hit = self.propAt(p);
         if (hit) {
-          if (hit.id === 'list') self.openList();
+          // with the drawer open, the revolver and the device do what Fire and Use device do
+          if (hit.id === 'gun') { var f = document.querySelector('#actions .stamp.armed'); if (f) f.click(); }
+          else if (hit.id === 'device') { var d = document.querySelector('#actions .stamp.shutdown'); if (d) d.click(); }
+          else if (hit.id === 'drawer') { /* the drawer's felt: nothing under it to click */ }
+          else if (hit.id === 'list') self.openList();
           else if (hit.id === 'radio') self.radio();
+          else if (hit.id === 'lamp') self.show({ zoom: 'lamp', title: 'Desk lamp', text: 'My trusty desk lamp, its been here as long as I have and the bulb is still going strong.' });
+          else if (hit.id === 'bag') self.show({ zoom: 'sisterBag', title: 'Lunch bag', text: 'Her brown paper bag, still on the counter. ALDOUS in marker. It smells like meatloaf.' });
           else self.openNotebook();
           return;
         }
@@ -139,9 +146,17 @@
     },
 
     propAt: function (p) {
-      var hit = null;
+      var hit = null, inside = function (q) { return p.x >= q.x && p.x < q.x + q.w && p.y >= q.y && p.y < q.y + q.h; };
+      // an open drawer covers the desk props behind it
+      if (this.S.drawerOpen && this.mode !== 'line') {
+        E.art.drawerProps().forEach(function (q) {
+          if (inside(q) && document.querySelector(q.id === 'gun' ? '#actions .stamp.armed' : '#actions .stamp.shutdown')) hit = q;
+        });
+        if (hit) return hit;
+        if (inside({ x: 316, y: 206, w: 160, h: 64 })) return { id: 'drawer' };
+      }
       E.art.props.forEach(function (q) {
-        if (p.x >= q.x && p.x < q.x + q.w && p.y >= q.y && p.y < q.y + q.h) hit = q;
+        if (inside(q) && (!q.when || q.when())) hit = q;
       });
       return hit;
     },

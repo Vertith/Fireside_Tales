@@ -155,9 +155,11 @@
       turnAway: { steps: [
         { narrate: 'I told her the doctor wasn\'t to be disturbed, not even for meatloaf.' },
         { who: 'sister', say: 'Not even for his own sister? What has he got going on up there?' },
-        { narrate: 'She set the bag on the counter, thought better of it, and took it with her.' },
+        { narrate: 'She set the bag on the counter and pushed it at me.' },
+        { who: 'sister', say: 'Fine. I\'m leaving this for Aldous. Make sure he gets it, and make sure he eats it.' },
+        { set: 'sisterBag' },
         { exit: 'walk' },
-        { note: ['sister', 'Turned her away. She took the supper back to the wagon.'] }
+        { note: ['sister', 'Turned her away. She left his supper on the counter for him.'] }
       ] },
       shoot: { steps: [
         { sfx: 'gunshot' },

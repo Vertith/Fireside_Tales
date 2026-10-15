@@ -17,6 +17,14 @@
     { crt: ['CAM 03 LAB HALL', '> MOTION: 1', '> DOOR B: OPEN'] },
     { narrate: 'The stairwell door again. Kane, with his sleeves rolled and a smell on him like a burnt-out fuse.' },
     { enter: 'scientist', from: 'right' },
+    // the supper his sister left, if Lou sent her away
+    { 'if': 'run:sisterBag', then: [
+      { narrate: 'He spotted the paper bag on the counter and picked it up. Peeked inside.' },
+      { who: 'scientist', say: 'Meatloaf. I hate meatloaf.' },
+      { narrate: 'His own sister\'s meatloaf. She\'d driven it over in the rain.' },
+      { note: ['scientist', 'Picked up the supper his sister left. Said he hates meatloaf. She made it for him.'] },
+      { set: 'bagTaken' }
+    ] },
     { who: 'scientist', say: 'How are we doing? Don\'t answer. You\'re still here, so we\'re doing fine.' },
     { who: 'scientist', say: 'It\'s going to get stranger from here. Some of them won\'t be people at all.' },
     { narrate: 'He set a grey plastic box on the desk. The size of a pager, one button on it.' },
