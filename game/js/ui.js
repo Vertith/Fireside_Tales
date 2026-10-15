@@ -59,6 +59,7 @@
           // with the drawer open, the revolver and the device do what Fire and Use device do
           if (hit.id === 'gun') { var f = document.querySelector('#actions .stamp.armed'); if (f) f.click(); }
           else if (hit.id === 'device') { var d = document.querySelector('#actions .stamp.shutdown'); if (d) d.click(); }
+          else if (hit.id === 'ammo') self.show({ zoom: 'ammo', title: 'Shells', text: 'Six in the revolver and most of a box left. Should last me all night.' });
           else if (hit.id === 'drawer') { /* the drawer's felt: nothing under it to click */ }
           else if (hit.id === 'list') self.openList();
           else if (hit.id === 'radio') self.radio();
@@ -72,7 +73,7 @@
       $('narr').addEventListener('click', function () { self.advance(); });
       $('transcript').addEventListener('click', function (e) { if (!e.target.closest('button')) self.advance(); });
       $('btn-next').addEventListener('click', function () { self.advance(); });
-      $('btn-skip').addEventListener('click', function () { self.answer('skip'); });
+      $('btn-skip').addEventListener('click', function () { self.unlockSpots(); self.answer('skip'); });
       $('zoom').addEventListener('click', function () { $('zoom').hidden = true; });
 
       $('btn-notebook').addEventListener('click', function () { self.openNotebook(); });
@@ -105,7 +106,7 @@
           if (e.target.tagName === 'BUTTON' && e.target.id !== 'btn-next') return;
           e.preventDefault(); self.advance();
         } else if ((e.key === 's' || e.key === 'S') && self.mode === 'line' && !$('btn-skip').hidden) {
-          self.answer('skip');
+          self.unlockSpots(); self.answer('skip');
         } else if (/^[1-9]$/.test(e.key) && (self.mode === 'choice' || self.mode === 'desk')) {
           var b = $('questions').querySelectorAll('button')[+e.key - 1];
           if (b) b.click();
@@ -150,7 +151,7 @@
       // an open drawer covers the desk props behind it
       if (this.S.drawerOpen && this.mode !== 'line') {
         E.art.drawerProps().forEach(function (q) {
-          if (inside(q) && document.querySelector(q.id === 'gun' ? '#actions .stamp.armed' : '#actions .stamp.shutdown')) hit = q;
+          if (inside(q) && (q.id === 'ammo' || document.querySelector(q.id === 'gun' ? '#actions .stamp.armed' : '#actions .stamp.shutdown'))) hit = q;
         });
         if (hit) return hit;
         if (inside({ x: 316, y: 206, w: 160, h: 64 })) return { id: 'drawer' };
@@ -257,6 +258,11 @@
     hotspots: function (id) {
       var v = E.content.visitors[id], box = $('hots'), self = this;
       box.innerHTML = '';
+      // nothing on a visitor can be looked at until they've finished their opening;
+      // unlockSpots() opens them up (with a glint) when the questions appear
+      clearTimeout(this.glintTimer);
+      box.classList.remove('glint');
+      box.classList.add('locked');
       if (!v || !v.inspect) return;
       var W = E.art.VIEW;
       this.looked = {};
@@ -276,6 +282,18 @@
         el.addEventListener('click', function (e) { e.stopPropagation(); self.inspect(id, h); });
         box.appendChild(el);
       });
+    },
+
+    /** The visitor has finished talking: let their items be clicked, and glint them once
+     *  so players (on touch screens especially, with no hover) see what can be inspected. */
+    unlockSpots: function () {
+      var box = $('hots');
+      if (!box.classList.contains('locked')) return;
+      box.classList.remove('locked');
+      if (!box.children.length) return;
+      box.classList.add('glint');
+      clearTimeout(this.glintTimer);
+      this.glintTimer = setTimeout(function () { box.classList.remove('glint'); }, 1700);
     },
 
     inspect: function (id, h) {
@@ -443,6 +461,7 @@
       this.turn(spec.prompt);
       $('actions').hidden = true;
       $('pad-title').textContent = 'Say';
+      this.unlockSpots();
       var says = [], acts = [];
       spec.options.forEach(function (o, i) { (o.action ? acts : says).push({ o: o, i: i }); });
       return new Promise(function (resolve) {
@@ -467,6 +486,7 @@
       var self = this;
       this.mode = 'desk';
       this.turn(spec.prompt);
+      this.unlockSpots();
       this.padTitle();
       $('actions').hidden = false;
       return new Promise(function (resolve) {

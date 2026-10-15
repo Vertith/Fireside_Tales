@@ -633,6 +633,12 @@
   /* ---------- inspection close-ups (32x24, scaled up in the zoom panel) ---------- */
   function fill(z, x, y, w, h, col) { z.fillStyle = col; z.fillRect(x, y, w, h); }
   var zooms = {
+    ammo: function (z) {
+      fill(z, 0, 0, 32, 24, P.brown0);
+      fill(z, 3, 4, 16, 12, P.red0); fill(z, 3, 4, 16, 1, P.red1); fill(z, 6, 8, 10, 3, P.paperShade);
+      for (var i = 0; i < 4; i++) { fill(z, 21 + (i % 2) * 5, 3 + (i >> 1) * 10, 3, 8, P.lamp3); fill(z, 21 + (i % 2) * 5, 3 + (i >> 1) * 10, 3, 2, P.lamp4); }
+      fill(z, 4, 18, 14, 4, P.lamp3); fill(z, 4, 18, 14, 1, P.lamp4);
+    },
     lamp: function (z) {
       fill(z, 0, 0, 32, 24, P.night1);
       fill(z, 6, 0, 22, 10, P.lamp3); fill(z, 2, 12, 28, 12, P.wood2);
@@ -921,6 +927,7 @@
       var gx = 320 + (hasDev ? 40 : 34);
       var out = [{ id: 'gun', x: gx - 4, y: 212, w: 84, h: 26 }];
       if (hasDev) out.push({ id: 'device', x: 331, y: 217, w: 18, h: 24 });
+      out.push({ id: 'ammo', x: 442, y: 214, w: 24, h: 30 });   // the box of shells
       return out;
     },
     /**

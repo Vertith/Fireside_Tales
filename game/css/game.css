@@ -63,6 +63,17 @@ button { font: inherit; color: inherit; }
   background: transparent; border: 1px dashed transparent; padding: 0;
 }
 .hot:hover, .hot:focus-visible { border-color: var(--lamp4); outline: none; }
+/* locked while the visitor is still giving their opening; clicks fall through to advance the line */
+#hots.locked .hot { pointer-events: none; }
+/* a brief glint when they unlock, so you can see what's worth a closer look */
+#hots.glint .hot { animation: hot-glint 0.8s ease-in-out 2; }
+@keyframes hot-glint {
+  0%, 100% { border-color: transparent; background: transparent; }
+  50% { border-color: var(--lamp4); background: rgba(242, 194, 122, 0.22); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #hots.glint .hot { animation: none; border-color: var(--lamp4); }
+}
 
 /* ---------- text on the art (wide: native coordinates, scaled with the canvas) ---------- */
 .wide #ui { position: absolute; inset: 0; pointer-events: none; }
