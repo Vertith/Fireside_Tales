@@ -2201,6 +2201,7 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
   E.content.characters = E.content.characters || {};
 
   var STORE_KEY = 'emit-time.save.v1';
+  var TROPHY_KEY = 'fireside-tales.trophies'; // shared with the campfire hub
   var CANCEL = { cancelled: true };
   var ACTIONS = ['letThrough', 'turnAway', 'shoot', 'shutdown'];
   // the three questions every visitor can be asked; a visitor answers them in `opening`
@@ -2249,6 +2250,7 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
     this.ui = ui;
     this.memory = load() || freshMemory();
     this.hasSave = !!load();
+    reportTrophies(this.memory.endings); // endings reached before the campfire kept trophies
     this.gen = 0;
     this.run = null;
     this.skipping = false;
@@ -2256,7 +2258,18 @@ td { border-bottom: 1px solid var(--paper-shade); padding: 4px 6px; vertical-ali
 
   Game.prototype.save = function () {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(this.memory)); } catch (e) { /* storage unavailable */ }
+    reportTrophies(this.memory.endings);
   };
+
+  // Tell the Fireside Tales campfire which endings have been reached, so it can put a trophy on the log.
+  // The key is shared by every tale and is never wiped by the game's own reset.
+  function reportTrophies(endings) {
+    try {
+      var all = JSON.parse(localStorage.getItem(TROPHY_KEY) || '{}') || {}, mine = all.emit || (all.emit = {}), added = false;
+      for (var id in endings) if (id !== 'unfinished' && !mine[id]) { mine[id] = Date.now(); added = true; }
+      if (added) localStorage.setItem(TROPHY_KEY, JSON.stringify(all));
+    } catch (e) { /* storage unavailable */ }
+  }
 
   Game.prototype.wipe = function () {
     this.memory = freshMemory();

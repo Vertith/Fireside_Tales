@@ -96,6 +96,49 @@ body {
   border: calc(var(--u) * 0.6) solid var(--ember); padding: calc(var(--u) * 2) calc(var(--u) * 6);
 }
 #note button:hover, #note button:focus-visible { background: var(--ember); color: var(--night0); outline: none; }
+#trophy-log {
+  position: absolute; background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+  display: flex; align-items: flex-end; justify-content: center; font: inherit; color: var(--paper);
+  border-radius: calc(var(--u) * 3);
+}
+#trophy-log .name {
+  font-family: var(--font-display); font-size: max(calc(var(--u) * 6.4), 9px); line-height: 1.1; white-space: nowrap;
+  transform: translateY(110%); opacity: 0; transition: opacity 0.2s; color: var(--flame);
+  text-shadow: 0 calc(var(--u) * 0.6) 0 var(--night0), 0 0 calc(var(--u) * 3) var(--night0);
+}
+#trophy-log:hover .name, #trophy-log:focus-visible .name { opacity: 1; }
+#trophy-log:focus-visible { outline: calc(var(--u) * 0.8) dashed var(--flame); outline-offset: calc(var(--u) * 1); }
+#trophies {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: calc(var(--u) * 400); max-width: 96%; max-height: 94%; overflow: auto; box-sizing: border-box;
+  background: var(--night0); border: calc(var(--u) * 1) solid var(--ember);
+  box-shadow: 0 0 0 calc(var(--u) * 1) var(--night0), 0 0 calc(var(--u) * 20) rgba(200, 138, 69, 0.25);
+  padding: calc(var(--u) * 7) calc(var(--u) * 8) calc(var(--u) * 8); text-align: center;
+}
+#trophies h2 {
+  margin: 0; font-family: var(--font-display); font-weight: 400;
+  font-size: calc(var(--u) * 10); color: var(--flame);
+}
+#trophies .sub { margin: calc(var(--u) * 1) 0 calc(var(--u) * 4); font-size: max(calc(var(--u) * 8), 11px); color: var(--paper-dim); }
+#trophy-shelf { display: block; width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; }
+#trophy-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: calc(var(--u) * 3); margin: calc(var(--u) * 3) 0 calc(var(--u) * 6); text-align: center; }
+#trophy-cards h3 {
+  margin: 0 0 calc(var(--u) * 2); font-family: var(--font-display); font-weight: 400;
+  font-size: max(calc(var(--u) * 5.6), 8px); line-height: 1.15; color: var(--paper);
+}
+#trophy-cards .won h3 { color: var(--flame); }
+#trophy-cards ul { list-style: none; margin: 0; padding: 0; font-size: max(calc(var(--u) * 7.2), 11px); line-height: 1.05; }
+#trophy-cards li { color: var(--paper-dim); margin-bottom: calc(var(--u) * 1.2); }
+#trophy-cards li.got { color: var(--paper); }
+#trophy-cards li::before { content: '\2606 '; color: var(--paper-dim); }
+#trophy-cards li.got::before { content: '\2605 '; color: var(--flame); }
+#trophy-cards .soon { font-size: max(calc(var(--u) * 6.5), 10px); color: var(--paper-dim); margin-top: calc(var(--u) * 1); }
+#trophies button {
+  font-family: var(--font-display); font-size: calc(var(--u) * 6.5);
+  background: var(--night2); color: var(--paper); cursor: pointer;
+  border: calc(var(--u) * 0.6) solid var(--ember); padding: calc(var(--u) * 2) calc(var(--u) * 6);
+}
+#trophies button:hover, #trophies button:focus-visible { background: var(--ember); color: var(--night0); outline: none; }
 #fade {
   position: absolute; inset: 0; background: var(--night0); opacity: 0;
   pointer-events: none; transition: opacity 0.7s ease-in;
@@ -117,6 +160,14 @@ body {
       <h2 id="note-title"></h2>
       <p>This tale isn't ready to be told yet. Come back another night.</p>
       <button id="note-close" type="button">Back to the fire</button>
+    </div>
+    <button id="trophy-log" type="button" aria-haspopup="dialog"><span class="name">Trophies</span></button>
+    <div id="trophies" role="dialog" aria-modal="true" aria-labelledby="trophies-title" hidden>
+      <h2 id="trophies-title">Trophy Log</h2>
+      <p class="sub">Camp Fireside, summer of '93. One trophy for each tale, one star for each ending.</p>
+      <canvas id="trophy-shelf" width="240" height="60" aria-hidden="true"></canvas>
+      <div id="trophy-cards"></div>
+      <button id="trophies-close" type="button">Back to the fire</button>
     </div>
     <div id="fade"></div>
   </div>
@@ -718,6 +769,7 @@ body {
       if (t.id === 'intruders' && tick % 90 < 3) { px(g, o[0] + 3, o[1] + 4, C.skinA2); px(g, o[0] + 7, o[1] + 4, C.skinA2); } // a blink
       if (t.id === 'lab') bubbles.forEach(function (b) { px(g, o[0] + b.x, o[1] + Math.round(b.y), C.crt2); });
     });
+    drawLogTrophies();
     if (ev && ev.name === 'deer') drawDeerEvent(ev);
     if (ev && ev.name === 'hanged') drawHanged(ev);
     if (ev && ev.name === 'ghost') drawGhost(ev);
@@ -1084,7 +1136,153 @@ body {
     var c = t < 12 || t > 58 ? C.lamp3 : C.lamp4;
     rect(g, e.x, e.y, 2, 1, c); rect(g, e.x + 4, e.y, 2, 1, c);
   }
-  window.FIRESIDE = { play: function (name) { if (EVENTS.indexOf(name) >= 0) startEvent(name); }, event: function () { return ev; }, played: played };
+  // ---------- trophies on the fallen log ----------
+  // Every tale writes the endings it has seen to one shared localStorage key, which this page reads:
+  //   localStorage['fireside-tales.trophies'] = { "<tale id>": { "<ending id>": <time first reached> } }
+  // Tales that aren't finished yet get a placeholder trophy with empty stars.
+  var TROPHY_KEY = 'fireside-tales.trophies', SEEN_KEY = 'fireside-tales.trophies-seen';
+  var TROPHIES = [
+    { id: 'emit', name: 'Emit Time', topper: 'watch',
+      endings: [['true', 'Morning'], ['emit', 'Clean slate'], ['emitRules', 'The right hands'], ['emitTurned', 'Thrown in with them']] },
+    { id: 'asylum', name: 'The Asylum', topper: 'key', soon: 3 },
+    { id: 'intruders', name: 'Intruders', topper: 'flashlight', soon: 3 },
+    { id: 'walks', name: 'It Walks', topper: 'foot', soon: 3 },
+    { id: 'lab', name: 'The Lab', topper: 'flask', soon: 3 }
+  ];
+  var won = {}, glint = {};
+  function readJSON(key) { try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (err) { return {}; } }
+  function earned(tr) { var got = won[tr.id] || {}; return (tr.endings || []).filter(function (e) { return got[e[0]]; }).length; }
+  function loadTrophies() {
+    won = readJSON(TROPHY_KEY);
+    var seen = readJSON(SEEN_KEY), changed = false;
+    TROPHIES.forEach(function (tr) {
+      var n = earned(tr);
+      if (n > (seen[tr.id] || 0)) { glint[tr.id] = tick; seen[tr.id] = n; changed = true; } // a new ending since last visit
+    });
+    if (changed) try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); } catch (err) {}
+    if (reduced) draw();
+  }
+
+  // small trophies standing on the log: a gold cup once a tale has an ending, a dark empty one until then
+  var CUP = [
+    '.GgggG.',
+    'hGgggGh',
+    'h.GgG.h',
+    '..GgG..',
+    '...G...',
+    '..dGd..',
+    '.bbbbb.',
+    '.bpppb.',
+    'ccccccc'
+  ];
+  var CUP_GOLD = { G: C.lamp3, g: C.lamp4, h: C.lamp3, d: C.wood3, b: C.wood2, p: C.lamp3, c: C.wood1 };
+  var CUP_DARK = { G: C.night3, g: C.night3, h: C.night2, d: C.night2, b: C.night2, p: C.night3, c: C.night1 };
+  var LOG = { x: 150, y: 238, len: 46 }, CUP_SPOTS = [6, 14, 22, 30, 38];
+  function cupAt(k) { var i = CUP_SPOTS[k]; return [LOG.x + i - 3, LOG.y - Math.round(i * 0.08) - 4 - CUP.length]; }
+  var trophyHover = false;
+  function drawLogTrophies() {
+    TROPHIES.forEach(function (tr, k) {
+      var o = cupAt(k), gold = earned(tr) > 0;
+      if (trophyHover) outline(g, CUP, o[0], o[1], C.lamp4);
+      sprite(g, CUP, gold ? CUP_GOLD : CUP_DARK, o[0], o[1]);
+      if (gold && glint[tr.id] != null) { // a sparkle runs up a newly won trophy
+        var t = (tick - glint[tr.id]) % 40;
+        if (tick - glint[tr.id] > 400) delete glint[tr.id];
+        else if (t < 8) px(g, o[0] + 1 + (t % 5), o[1] + 7 - t, C.flash);
+      }
+    });
+  }
+
+  // the close-up: bigger 1993 camp trophies, a walnut base, a brass plate and a gold figure on a fluted column
+  var TOPPERS = {
+    watch: ['....ggg....', '....g.g....', '...ddddd...', '..dGGGGGd..', '.dGgggggGd.', '.dGggdggGd.', '.dGggdggGd.', '.dGggddgGd.', '.dGgggggGd.', '..dGGGGGd..', '...ddddd...'],
+    key: ['...ddd.....', '..dGGGd....', '.dGd.dGd...', '.dGd.dGd...', '..dGgGd....', '...dgd.....', '...dGd.....', '...dGdd....', '...dGGGd...', '...dGd.....', '...dGGd....'],
+    flashlight: ['..ddddddd..', '..dgggggd..', '..dGGGGGd..', '...dGgGd...', '....dGd....', '....dgd....', '....dGd....', '....dGd....', '....dgd....', '....dGd....', '....ddd....'],
+    foot: ['......G.G..', '....G.GG.G.', '...GG......', '....ddddd..', '...dGGGGGd.', '...dGgggGd.', '...dGgggGd.', '....dGgGd..', '....dGGGd..', '....dGGd...', '.....dd....'],
+    flask: ['....ddd....', '....dgd....', '....dGd....', '....dGd....', '...dGGGd...', '..dGgggGd..', '.dGgggggGd.', '.dGGGGGGGd.', 'dGGGGGGGGGd', 'dGGGGGGGGGd', '.ddddddddd.']
+  };
+  function drawBigTrophy(sg, tr, cx) {
+    var got = won[tr.id] || {}, n = earned(tr), lit = n > 0;
+    var P = lit ? { hi: C.lamp4, mid: C.lamp3, lo: C.wood3, w0: C.wood1, w1: C.wood2, w2: C.wood3, plate: C.lamp3, plateHi: C.lamp4, sock: C.wood0 }
+                : { hi: C.night3, mid: C.night2, lo: C.night1, w0: C.night0, w1: C.night1, w2: C.night2, plate: C.night2, plateHi: C.night3, sock: C.night0 };
+    sprite(sg, TOPPERS[tr.topper], { g: P.hi, G: P.mid, d: P.lo }, cx - 5, 3);
+    rect(sg, cx - 4, 15, 9, 2, P.mid); rect(sg, cx - 4, 15, 9, 1, P.hi);                       // cap
+    for (var y = 17; y < 33; y++) for (var x = -3; x <= 3; x++)                               // fluted column
+      px(sg, cx + x, y, x === -3 || x === 3 ? P.lo : (x + 3) % 2 ? P.hi : P.mid);
+    rect(sg, cx - 4, 32, 9, 1, P.lo);
+    rect(sg, cx - 9, 33, 19, 6, P.w1); rect(sg, cx - 9, 33, 19, 1, P.w2); rect(sg, cx + 9, 33, 1, 6, P.w0); // upper tier
+    var slots = tr.endings ? tr.endings.length : tr.soon, sx = cx - Math.floor((slots * 4 - 2) / 2);
+    for (var i = 0; i < slots; i++) {                                                          // one star socket per ending
+      var on = tr.endings && got[tr.endings[i][0]];
+      rect(sg, sx + i * 4, 35, 2, 2, on ? C.lamp4 : P.sock);
+      if (on) px(sg, sx + i * 4 + 1, 36, C.lamp3);
+    }
+    rect(sg, cx - 12, 39, 25, 8, P.w1); rect(sg, cx - 12, 39, 25, 1, P.w2);                    // lower tier
+    rect(sg, cx + 12, 39, 1, 8, P.w0); rect(sg, cx - 12, 46, 25, 1, P.w0);
+    rect(sg, cx - 8, 41, 17, 4, P.plate); rect(sg, cx - 8, 41, 17, 1, P.plateHi);              // brass plate
+    for (var e = cx - 6; e <= cx + 6; e += 2) px(sg, e, 43, lit ? C.wood3 : C.night1);         // engraving
+  }
+  function drawShelf() {
+    var cv = document.getElementById('trophy-shelf'), sg = cv.getContext('2d');
+    rect(sg, 0, 0, 240, 60, C.night0);
+    for (var x = 0; x < 240; x++) {                                                           // the log, up close
+      rect(sg, x, 47, 1, 1, x % 7 === 3 ? C.wood3 : C.wood2);
+      rect(sg, x, 48, 1, 4, x % 11 === 5 ? C.wood0 : C.wood1);
+      rect(sg, x, 52, 1, 3, x % 5 === 1 ? C.wood1 : C.wood0);
+      if (x % 13 === 6) rect(sg, x, 49, 3, 1, C.wood2);
+      if (x % 17 === 9) px(sg, x, 50, C.wood0);
+    }
+    rect(sg, 0, 55, 240, 5, C.night0);
+    TROPHIES.forEach(function (tr, k) { drawBigTrophy(sg, tr, 24 + k * 48); });
+  }
+  function fillCards() {
+    var box = document.getElementById('trophy-cards');
+    box.innerHTML = '';
+    TROPHIES.forEach(function (tr) {
+      var got = won[tr.id] || {}, card = document.createElement('div'), ul = document.createElement('ul');
+      card.className = earned(tr) ? 'won' : '';
+      var h = document.createElement('h3'); h.textContent = tr.name; card.appendChild(h);
+      var list = tr.endings || Array.apply(null, Array(tr.soon)).map(function () { return [null]; });
+      list.forEach(function (e) {
+        var li = document.createElement('li');
+        if (e[0] && got[e[0]]) { li.className = 'got'; li.textContent = e[1]; }
+        else { li.textContent = '???'; li.setAttribute('aria-label', 'Ending not found yet'); }
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+      if (tr.soon) { var p = document.createElement('p'); p.className = 'soon'; p.textContent = 'coming soon'; card.appendChild(p); }
+      box.appendChild(card);
+    });
+  }
+  var trophyBtn = document.getElementById('trophy-log'), trophyBox = document.getElementById('trophies');
+  (function placeTrophyButton() {
+    var bx = LOG.x - 6, by = LOG.y - 22, bw = LOG.len + 10, bh = 26;
+    trophyBtn.style.left = (bx / W * 100) + '%'; trophyBtn.style.top = (by / H * 100) + '%';
+    trophyBtn.style.width = (bw / W * 100) + '%'; trophyBtn.style.height = (bh / H * 100) + '%';
+  })();
+  function setTrophyHover(v) { trophyHover = v; if (reduced) draw(); }
+  trophyBtn.addEventListener('mouseenter', function () { setTrophyHover(true); });
+  trophyBtn.addEventListener('mouseleave', function () { setTrophyHover(false); });
+  trophyBtn.addEventListener('focus', function () { setTrophyHover(true); });
+  trophyBtn.addEventListener('blur', function () { setTrophyHover(false); });
+  trophyBtn.addEventListener('click', function () {
+    crackle(0.6);
+    loadTrophies(); drawShelf(); fillCards();
+    trophyBox.hidden = false;
+    document.getElementById('trophies-close').focus();
+  });
+  function closeTrophies() { trophyBox.hidden = true; trophyBtn.focus(); }
+  document.getElementById('trophies-close').addEventListener('click', closeTrophies);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !trophyBox.hidden) closeTrophies(); });
+  window.addEventListener('storage', function (e) { if (e.key === TROPHY_KEY) loadTrophies(); });
+  window.addEventListener('pageshow', loadTrophies);
+  loadTrophies();
+
+  window.FIRESIDE = { play: function (name) { if (EVENTS.indexOf(name) >= 0) startEvent(name); }, event: function () { return ev; }, played: played,
+    trophies: {
+      award: function (tale, ending) { var all = readJSON(TROPHY_KEY); (all[tale] = all[tale] || {})[ending] = Date.now(); localStorage.setItem(TROPHY_KEY, JSON.stringify(all)); loadTrophies(); },
+      clear: function () { localStorage.removeItem(TROPHY_KEY); localStorage.removeItem(SEEN_KEY); loadTrophies(); }
+    } };
   var last = 0;
   function frame(ts) {
     if (ts - last > 70) { last = ts; update(); draw(); }

@@ -37,3 +37,16 @@ story's own, and write the story's art notes in `stories/<id>/style.md`.
    changing one story's save never touches another's (Emit Time's own save is `emit-time.save.v1`).
    The sound on/off setting is the one thing they share, on purpose.
 4. **Shared look, own accent.** Follow `ART-STYLE.md`; each tale picks its own accent colour.
+
+## Trophies on the campfire log
+
+When a player reaches an ending, the tale records it in one localStorage key that every tale shares and the campfire reads:
+
+```js
+// localStorage['fireside-tales.trophies'] = { "<tale id>": { "<ending id>": <time first reached> } }
+var all = JSON.parse(localStorage.getItem('fireside-tales.trophies') || '{}');
+(all.intruders = all.intruders || {})['escaped'] = all.intruders['escaped'] || Date.now();
+localStorage.setItem('fireside-tales.trophies', JSON.stringify(all));
+```
+
+Use the tale's id from `TALES` in the root `index.html` (`emit`, `asylum`, `intruders`, `walks`, `lab`). Never clear this key from inside a tale, even on a "wipe save". To show a tale's endings on its trophy, list them in `TROPHIES` in the root `index.html` as `[ending id, title]` pairs, in place of the `soon: 3` placeholder. Emit Time's version is `reportTrophies` in `game/js/engine.js`.
