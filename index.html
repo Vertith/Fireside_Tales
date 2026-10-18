@@ -1272,6 +1272,11 @@ body {
   });
   function closeTrophies() { trophyBox.hidden = true; trophyBtn.focus(); }
   document.getElementById('trophies-close').addEventListener('click', closeTrophies);
+  document.addEventListener('click', function (e) { // clicking anywhere off the log close-up puts it away
+    if (trophyBox.hidden || trophyBox.contains(e.target)) return;
+    e.preventDefault(); e.stopPropagation(); // the click only closes, it doesn't also open a tale behind it
+    closeTrophies();
+  }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !trophyBox.hidden) closeTrophies(); });
   window.addEventListener('storage', function (e) { if (e.key === TROPHY_KEY) loadTrophies(); });
   window.addEventListener('pageshow', loadTrophies);
