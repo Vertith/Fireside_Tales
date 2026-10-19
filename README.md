@@ -10,7 +10,7 @@ It's a stormy night in 1993 at Science Corp. You're the security guard on the fr
 
 ## Play
 
-- **Online:** [vertith.github.io/fireside_tales](https://vertith.github.io/fireside_tales/) opens the campfire; Emit Time itself is at [/game/](https://vertith.github.io/fireside_tales/game/)
+- **Online:** [vertith.github.io/Fireside_Tales](https://vertith.github.io/Fireside_Tales/) opens the campfire; Emit Time itself is at [/game/](https://vertith.github.io/Fireside_Tales/game/)
 - **In a browser:** open `game/index.html`, or the single-file build `game/dist/emit-time.html`. No build step or server needed.
 - **On Windows:** the V1.3 Beta installer and portable zip are distributed separately (they're too large for the repository). See [`releases/v1.3beta/README.md`](releases/v1.3beta/README.md).
 
