@@ -196,7 +196,7 @@ body {
     { id: 'asylum', name: 'The Asylum', x: 148, y: 164 },
     { id: 'intruders', name: 'Intruders', x: 240, y: 150 },
     { id: 'walks', name: 'It Walks', x: 332, y: 164 },
-    { id: 'lab', name: 'The Lab', x: 388, y: 204 }
+    { id: 'lab', name: 'The Lab', x: 388, y: 204, ready: true, url: local ? 'stories/lab/index.html' : SITE + 'stories/lab/' }
   ];
 
   // ---------- helpers ----------
@@ -1146,7 +1146,8 @@ body {
     { id: 'asylum', name: 'The Asylum', topper: 'key', soon: 3 },
     { id: 'intruders', name: 'Intruders', topper: 'flashlight', soon: 3 },
     { id: 'walks', name: 'It Walks', topper: 'foot', soon: 3 },
-    { id: 'lab', name: 'The Lab', topper: 'flask', soon: 3 }
+    { id: 'lab', name: 'The Lab', topper: 'flask',
+      endings: [['terminate', 'Terminate'], ['free', 'Free'], ['happy', 'Happy'], ['failed', 'Failed'], ['brutalist', 'Brutalist'], ['vessel', 'Vessel']] }
   ];
   var won = {}, glint = {};
   function readJSON(key) { try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (err) { return {}; } }
@@ -1210,11 +1211,11 @@ body {
       px(sg, cx + x, y, x === -3 || x === 3 ? P.lo : (x + 3) % 2 ? P.hi : P.mid);
     rect(sg, cx - 4, 32, 9, 1, P.lo);
     rect(sg, cx - 9, 33, 19, 6, P.w1); rect(sg, cx - 9, 33, 19, 1, P.w2); rect(sg, cx + 9, 33, 1, 6, P.w0); // upper tier
-    var slots = tr.endings ? tr.endings.length : tr.soon, sx = cx - Math.floor((slots * 4 - 2) / 2);
+    var slots = tr.endings ? tr.endings.length : tr.soon, step = slots > 4 ? 3 : 4, sx = cx - Math.floor((slots * step - 2) / 2);
     for (var i = 0; i < slots; i++) {                                                          // one star socket per ending
       var on = tr.endings && got[tr.endings[i][0]];
-      rect(sg, sx + i * 4, 35, 2, 2, on ? C.lamp4 : P.sock);
-      if (on) px(sg, sx + i * 4 + 1, 36, C.lamp3);
+      rect(sg, sx + i * step, 35, 2, 2, on ? C.lamp4 : P.sock);
+      if (on) px(sg, sx + i * step + 1, 36, C.lamp3);
     }
     rect(sg, cx - 12, 39, 25, 8, P.w1); rect(sg, cx - 12, 39, 25, 1, P.w2);                    // lower tier
     rect(sg, cx + 12, 39, 1, 8, P.w0); rect(sg, cx - 12, 46, 25, 1, P.w0);
