@@ -147,6 +147,9 @@ function vignette(c, strength, keep = []) {
   }
 }
 let seed = 7;
+// The orientation state. Declared early because the debug day jump at the end of the file runs
+// engine code (drifts, terminal entry) before the orientation block.
+let tut = null;
 function srand() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -273,7 +276,7 @@ const S = {
   // cell damage: { walls, floor, bed, door, lens, pads } -> { day } while broken; a crew at work; door-rule misses
   damage: {}, repair: null, doorMissed: 0,
   // subjects: the active roster entry, its merged trait modifiers, the Intake Ledger and the cut technicians
-  subject: null, mods: null, ledger: null, alumni: [], alumniN: 0, transfers: [], usedSubjects: [], lastTransferDay: -99, lastChange: null,
+  subject: null, mods: null, ledger: null, alumni: [], alumniN: 0, transfers: [], usedSubjects: [], served: [], lastTransferDay: -99, lastChange: null,
   // stations: the monitors installed on the desk (A is wired at the start), the one the console is
   // routed to, and the stored per-cell state of every occupied station (see useCell below)
   stations: ['A'], focus: 'A', cells: {},
@@ -317,6 +320,29 @@ function mergeMods(traitIds) {
   return m;
 }
 function makeSubject(entry) { return JSON.parse(JSON.stringify({ ...entry, cell: CELL })); }
+// One line of the final tally: the loaded cell's subject, as they stand right now.
+function subjectRecord(fate, until = S.day) {
+  const sub = S.subject, since = sub.since || 1;
+  return { id: sub.id, name: sub.name || '', cell: sub.cell, since, until, days: Math.max(1, until - since + 1), state: stateNow().label, seen: Object.keys(S.seen).length, fate };
+}
+// Everyone the technician handled: subjects transferred out, then whoever is on a monitor now.
+function servedAll(endingId) {
+  const fateNow = { terminate: 'Left in the cell', brutalist: 'Protocol Zero', free: 'Left in the cell', vessel: 'Held', happy: 'Left in the cell', refused: 'Left in the cell', failed: 'Left in the cell' }[endingId] || 'Left in the cell';
+  const rows = S.served.slice();
+  const was = S.focus;
+  eachCell(id => {
+    let fate = fateNow;
+    if (endingId === 'terminate' && id === was) fate = 'Terminated';
+    if (endingId === 'free' && id === was) fate = 'Escaped';
+    if (endingId === 'brutalist' && S.terminal === 'vessel') fate = 'Not available';
+    rows.push(subjectRecord(fate));
+  });
+  return rows;
+}
+function servedTable(rows) {
+  return `<table class="board served"><thead><tr><th>Subject</th><th>Cell</th><th>Days</th><th>Final state</th><th>Seen</th><th>Outcome</th></tr></thead><tbody>${rows.map(r =>
+    `<tr><td>${esc(r.id)}${r.name ? ` <small>${esc(r.name)}</small>` : ''}</td><td>${esc(String(r.cell))}</td><td>${r.days}</td><td>${esc(r.state)}</td><td>${r.seen}</td><td>${esc(r.fate)}</td></tr>`).join('')}</tbody></table>`;
+}
 function sealedPhrases(e) { const t = e.traits || []; return t.slice(t.length - (e.sealed || 0)).flatMap(id => (SUBJ.traits[id] || {}).file || []); }
 function prefSum(e) { return (e.traits || []).reduce((a, id) => a + ((SUBJ.traits[id] || {}).directorPref || 0), 0); }
 function kinForms(k) {
@@ -375,7 +401,7 @@ function buildSelf(d) {
 }
 function ledgerPool() {
   const used = new Set(S.usedSubjects.concat([S.subject.id]));
-  const dirOffer = S.day >= 10 && axisTop().axis === 'fracture' && S.axes.fracture >= 40;
+  const dirOffer = S.day >= 7 && axisTop().axis === 'fracture' && S.axes.fracture >= 40;
   const civ = SUBJ.roster.filter(e => !e.starting && !used.has(e.id) && (!e.minDay || S.day >= e.minDay) && (!e.directorOnly || dirOffer));
   const alum = S.alumni.filter(a => !used.has(a.id) && S.day >= a.day + ALUM.delay).slice(-ALUM.maxInPool);
   return { civ, alum };
@@ -471,16 +497,16 @@ function intakeOne(tr) {
     const rival = pick(S.rivals), st = stateNow().id;
     rival.drive = Math.min(rival.drive + bonus.max, rival.drive + bonus.drivePerTier * tierSum());
     farewell = fmt(INTAKE.farewell[st] || INTAKE.farewell.baseline).replaceAll('{rival}', rival.name);
-    S.usedSubjects.push(old.id);
+    S.usedSubjects.push(old.id); S.served.push(subjectRecord('Transferred out', S.day));
   }
-  S.subject = makeSubject(e); S.subject.cell = stationOf(dest).cell; S.mods = mergeMods(S.subject.traits);
+  S.subject = makeSubject(e); S.subject.cell = stationOf(dest).cell; S.subject.since = S.day; S.mods = mergeMods(S.subject.traits);
   for (const a of AXES) S.axes[a] = clamp(B.axes[a].start + (S.mods.axisStart[a] || 0), 0, 100);
   for (const a in e.axisOverride || {}) S.axes[a] = e.axisOverride[a];
   for (const f of Object.keys(BASE)) S.fam[f] = { node: BASE[f], since: S.day, counts: newCounts() };
   S.famPath = {}; S.seen = {}; S.famSeen = {}; S.seenLine = {};
   S.terminal = null; S.terminalDay = 0; S.frozenPace = 0; S.hollowMemos = [];
   S.marks = []; S.puddles = []; S.mural = 0; S.ring = 0; S.trayEye = null; S.humBoost = 0; S.lastChange = null;
-  S.damage = Object.fromEntries(['bed', 'door'].filter(k => S.damage[k]).map(k => [k, S.damage[k]])); S.repair = null; S.doorMissed = 0;
+  S.damage = Object.fromEntries(['bed', 'door'].filter(k => S.damage[k]).map(k => [k, S.damage[k]])); S.repair = null; S.medic = null; S.doorMissed = 0;
   for (const k of ['door_known', 'map_complete', 'schedule_known', 'mattress_cache', 'guardsSeen', 'lensCracked', 'padsTorn', 'shockTorn', 'alumnusInCell']) delete S.flags[k];
   S.upgrades.delete('letters');
   S.patient = newPatient();
@@ -569,7 +595,7 @@ S.patient = newPatient();
 const STATIONS = D.monitorSlots;
 const CELL_FIELDS = ['patient', 'axes', 'fam', 'famPath', 'seen', 'famSeen', 'seenLine', 'terminal', 'terminalDay', 'hollowMemos', 'mural', 'ring', 'trayEye',
   'frozenPace', 'inst', 'lastInst', 'medicalUntil', 'sedatedUntil', 'humBoost', 'subject', 'mods', 'marks', 'puddles', 'fx', 'violation', 'lastChange',
-  'damage', 'repair', 'doorMissed'];
+  'damage', 'repair', 'medic', 'doorMissed'];
 // Flags that belong to the subject in the cell rather than to the technician.
 const CELL_FLAGS = ['door_known', 'map_complete', 'schedule_known', 'mattress_cache', 'guardsSeen', 'lensCracked', 'padsTorn', 'shockTorn', 'alumnusInCell',
   'arrivedDay', 'fileNew', 'medicalIncident', 'sched', 'schedDay'];
@@ -591,7 +617,7 @@ function freshCell(slot) {
 // lens and electrodes a Feral subject tears up. Each is a ticket at REQ-9. Whatever stands at 17:00 is
 // deducted, more for every day it has stood. A crew fixes a ticket in the cell while the subject faces the wall.
 const DMG = {
-  penalty: 15, crew: 9, marksToDamage: 5, doorMisses: 3, escapeFine: 40,
+  penalty: 15, crew: 9, marksToDamage: 5, doorMisses: 3, escapeFine: 40, medical: 10, medicWork: 7,
   labels: { walls: 'Walls written on', floor: 'Circle drawn on the floor', bed: 'Cot broken', door: 'Door latch broken, door ajar', lens: 'Camera lens cracked', pads: 'Electrodes torn out' },
   done: { walls: 'walls cleaned.', floor: 'floor scrubbed. The crew did not step inside the circle.', bed: 'new cot installed. Bolted.', door: 'door latch re-seated.', lens: 'camera lens replaced.', pads: 'electrodes refitted. Contact Electrodes online.' },
 };
@@ -610,7 +636,7 @@ function damagePenalty(list) { return list.reduce((a, d) => a + DMG.penalty * d.
 // Once an hour a cell may take damage. Any response from the console interrupts the act.
 function damageTick() {
   const p = S.patient;
-  if (tut || p.dead || p.gone || p.collapsed || medical() || S.repair || (S.inst && S.inst.infraction) || S.sedatedUntil > S.time) return;
+  if (tut || p.dead || p.gone || p.collapsed || medical() || S.repair || S.medic || (S.inst && S.inst.infraction) || S.sedatedUntil > S.time) return;
   const violent = S.axes.defiance >= 65 || S.terminal === 'feral' || (S.subject.traits || []).includes('violent');
   if (!S.damage.bed && violent && Math.random() < 0.22) { interrupt([{ move: SPOT.bedside }, { pose: 'kick', facing: 'left', dur: 3.6, wreck: 'bed' }]); return; }
   if (!S.damage.lens && !S.flags.lensCracked && (S.axes.defiance >= 75 || S.terminal === 'feral') && Math.random() < 0.12) { interrupt([{ move: SPOT.camera }, { pose: 'bang', facing: 'front', dur: 2.4, wreck: 'lens' }]); return; }
@@ -641,8 +667,8 @@ function escapeEnd() {
 }
 function startRepair(kind) {
   const p = S.patient, spot = kind === 'door' ? SPOT.behindcot : SPOT.doorwall;
-  S.repair = { kind, t: 0, dur: DMG.crew };
-  if (!p.collapsed && !p.dead && !medical() && !p.out) interrupt([{ move: spot }, { pose: 'stand', facing: 'back', at: spot, dur: DMG.crew + 1, hold: true }, { move: SPOT.bedSit }, { pose: 'sit', facing: 'front', dur: 3 }]);
+  S.repair = { kind, t: 0, dur: repairDur() };
+  if (!p.collapsed && !p.dead && !medical() && !p.out) interrupt([{ move: spot }, { pose: 'stand', facing: 'back', at: spot, dur: repairDur() + 1, hold: true }, { move: SPOT.bedSit }, { pose: 'sit', facing: 'front', dur: 3 }]);
   toast('Crew to Cell ' + cellNo() + '. Subject to stand against the wall.', 'MAINTENANCE');
   logEvent('repair', { kind, cell: S.focus });
 }
@@ -653,6 +679,22 @@ function finishRepair() {
   if (k === 'lens') delete S.flags.lensCracked;
   if (k === 'pads') { delete S.flags.padsTorn; delete S.flags.shockTorn; }
   toast('Cell ' + cellNo() + ': ' + DMG.done[k], 'MAINTENANCE'); logEvent('repaired', { kind: k, cell: S.focus });
+}
+// Medical: a collapse brings a team in through the door, with a guard in the doorway. Two medics
+// kneel at the subject until the heart settles, and the call-out is charged to the console.
+function medicDur() { return DMG.medicWork + CREW.open + CREW.walk * 2 + CREW.close; }
+function startMedic() {
+  const p = S.patient, fee = DMG.medical;
+  S.medic = { t: 0, dur: medicDur(), at: [Math.round(p.x), Math.round(p.y)] };
+  S.credits = Math.max(0, S.credits - fee); S.today.earned = Math.max(0, S.today.earned - fee);
+  S.today.medical = (S.today.medical || 0) + 1; S.today.medicalCost = (S.today.medicalCost || 0) + fee;
+  floatText('-' + fee + ' CR', G[3]);
+  toast('Medical team to Cell ' + cellNo() + '. Call-out charged to your console: ' + fee + ' cr.', 'MEDICAL');
+  logEvent('medical-team', { fee, cell: S.focus });
+}
+function finishMedic() {
+  S.medic = null;
+  toast('Cell ' + cellNo() + ': subject stabilised. Medical has left.', 'MEDICAL'); logEvent('medical-left', { cell: S.focus });
 }
 function buyRepair(item, cell) {
   if (!item || !S.cells[cell] || cellField(cell, 'repair') || S.credits < item.cost) { Snd.play('deny'); return; }
@@ -775,6 +817,7 @@ function applySave(d) {
 function fmt(s) {
   s = String(s).replaceAll('{name}', S.name);
   if (!s.includes('{')) return s;
+  if (s.includes('{lastRival}')) s = s.replaceAll('{lastRival}', (S.rivals.length ? S.rivals[0].name : 'Tech. Marsh').replace(/^Tech\. /, ''));
   const e = S.subject || {}, k = e.kin || {}, pf = kinForms(k);
   const map = { '{subject}': 'Subject ' + (e.id || ''), '{id}': e.id || '', '{subjectName}': e.name || '', '{kin.who}': k.who || 'family', '{kin.name}': k.name || '',
     '{kin.day}': k.day || 'Tuesday', '{kin.they}': pf.they, '{kin.them}': pf.them, '{kin.their}': pf.their };
@@ -1025,7 +1068,7 @@ function flag(id) {
   if (id === 'schedule_known') toast('Door Release Override pricing for Cell ' + cellNo() + ' has been revised.', 'REQ-9');
 }
 
-function moveFamily(f, to, why) {
+function moveFamily(f, to, why, t) {
   const fam = S.fam[f], from = fam.node;
   if (!fam || from === to) return;
   fam.node = to; fam.counts = newCounts(); fam.since = S.day;
@@ -1035,15 +1078,23 @@ function moveFamily(f, to, why) {
   // Nothing lights up yet. The change is pending until the subject is seen doing the new thing;
   // `from` stays the last behavior the console actually observed, even across several moves.
   const seenFrom = fam.pending ? fam.pending.from : from;
-  if (seenFrom === to) delete fam.pending; else fam.pending = { from: seenFrom, why };
+  // A change earned by letting infractions run keeps the count that earned it, for the observation credit.
+  const earned = t && t.response === 'ignore' && NODE[from].rule ? { need: needCount(t, f), rule: NODE[from].rule, mult: NODE[from].creditMult ?? 1 } : null;
+  if (seenFrom === to) delete fam.pending; else fam.pending = { from: seenFrom, why, earned };
   if (why === 'terminal' && NODE[to].director) S.seenLine[to] = true;
 }
 // First performance of a changed behavior: the FILE tag blinks, the feed names the family, the
 // Director remarks on it, and any memo the node carries is queued for the morning.
-function observeChange(f, from, to, why) {
+function observeChange(f, from, to, why, earned) {
   const n = NODE[to];
   S.today.changes.push({ family: f, from, to });
   logEvent('behavior-seen', { family: f, from, to, why });
+  // Observation credit: the Director pays back part of what the ignored infractions were worth.
+  if (earned && !tut && S.terminal !== 'hollow') {
+    const cr = Math.max(1, Math.round(earned.need * RULE[earned.rule].credits * earned.mult * TUNE.observeCredit));
+    S.credits += cr; S.stats.earned += cr; S.today.earned += cr; S.today.observed = (S.today.observed || 0) + cr;
+    logEvent('observed', { family: f, to, credits: cr }); floatText('+' + cr + ' CR OBSERVED'); Snd.play('credit'); say('observed', 0.6);
+  }
   S.flags.fileNew = true; S.lastChange = { family: f, from, to, at: S.time, day: S.day };
   if (why === 'response' && (!n.director || S.seenLine[n.id])) say('newBehavior', 0.3);
   if (n.memo && !S.flags['memo_' + n.memo.id]) { S.flags['memo_' + n.memo.id] = true; S.nextMemos.push({ id: n.memo.id, cell: S.focus }); }
@@ -1069,14 +1120,17 @@ function evaluateTransitions(f) {
     if (t.require && Object.keys(t.require).some(a => S.axes[a] < t.require[a])) continue;
     const n = t.response === 'talkToday' ? (S.today.talks > 0 ? 1 : 0)
       : t.stimulus ? fam.counts.by[t.response + ':' + t.stimulus] || 0 : fam.counts[t.response] || 0;
-    if (n >= needCount(t, f)) { moveFamily(f, t.to, 'response'); return true; }
+    if (n >= needCount(t, f)) { moveFamily(f, t.to, 'response', t); return true; }
   }
   return false;
 }
 // Once an in-game hour: the strongest drive past its threshold pulls one more family to its node.
+// The full moon rises on the last day. From the eve of it, infractions come faster, the odds
+// flatten and drifts start sooner.
+function fullMoon() { return S.day >= CFG.fullMoonDay; } // never true in the orientation, which runs before day 1
 function drift() {
   const top = axisTop(), d = B.drifts.find(x => x.axis === top.axis);
-  if (!d || top.v < ((mod('driftMin') || {})[top.axis] ?? d.min) || S.terminal === 'hollow') return;
+  if (!d || top.v < ((mod('driftMin') || {})[top.axis] ?? d.min) - (fullMoon() ? TUNE.fullMoonDrift : 0) || S.terminal === 'hollow') return;
   if (S.terminal && B.terminals[S.terminal].axis !== top.axis) return;
   for (const id of d.order) {
     const n = NODE[id], fam = S.fam[n.family], cur = NODE[fam.node];
@@ -1098,7 +1152,7 @@ function startInstance(st) {
   if (!S.seen[n.id]) S.seen[n.id] = S.day;
   if (st.doorAsk && !S.flags.doorAsked) { S.flags.doorAsked = true; logEvent('door-ask', { node: n.id }); toast('Door Release Override has been added to the maintenance catalogue.', 'REQ-9'); }
   const fam = S.fam[n.family], pc = fam && fam.pending;
-  if (pc && fam.node === n.id) { delete fam.pending; observeChange(n.family, pc.from, n.id, pc.why); }
+  if (pc && fam.node === n.id) { delete fam.pending; observeChange(n.family, pc.from, n.id, pc.why, pc.earned); }
   if (n.director && !S.seenLine[n.id] && n.tier > 0) { S.seenLine[n.id] = true; toast(fmt(n.director)); }
   if (n.id === 'makebed_hide') flag('mattress_cache');
   if (n.id === 'tiles_guards' && (S.flags.guardsSeen = (S.flags.guardsSeen || 0) + 1) >= conspNeed()) flag('schedule_known');
@@ -1146,11 +1200,12 @@ function offendingShare() {
 function gapNow() {
   if (S.terminal === 'vessel') return TUNE.vesselGap;
   const [a, b] = CFG.violationGap;
-  const h = hourNow() - CFG.shiftStartHour + (S.day - 1) * 3;
+  const h = hourNow() - CFG.shiftStartHour + (S.day - 1) * (60 / CFG.totalDays);
   const book = S.upgrades.has('book') ? 1.15 : 1;
   let g = rand(a, b) * (1 - Math.min(0.45, h * 0.05)) * (1 - S.patient.stress / 300) * book;
   g /= TUNE.compliantGap + (1 - TUNE.compliantGap) * offendingShare();
   g *= mult('gapMult');
+  if (fullMoon()) g *= TUNE.fullMoonGap;
   if (S.terminal === 'feral') return Math.max(2, g * TUNE.feralGap);
   return Math.max(3.2, g);
 }
@@ -1215,6 +1270,7 @@ function chooseInfraction(list, relapse = []) {
     if (book && (n.family === 'speak' || n.family === 'sing')) v *= 0.5;
     if (doorAskReady(n)) v *= 2.5;
     if (n.family === p.lastFam && list.length > 1) v *= 0.25;
+    if (fullMoon()) v = Math.sqrt(v); // the moon flattens the odds: anything can come next
     total += v; return v;
   });
   let roll = Math.random() * total;
@@ -1375,6 +1431,7 @@ function administer() {
   const stim = curStim(), I = S.intensity, p = S.patient, inst = S.inst;
   if (stim.id === 'shock' && S.flags.shockTorn === S.day) { Snd.play('deny'); say('shockTorn', 1, 'CONSOLE'); return; }
   if (medical()) { Snd.play('deny'); toast('Cell ' + cellNo() + ' is on transfer. Medical is inside.', 'CONSOLE'); return; }
+  if (S.medic) { Snd.play('deny'); toast('Medical is inside Cell ' + cellNo() + '. Console held.', 'CONSOLE'); return; }
   S.cooldown = stim.cooldown; S.stats.feedback++; S.today.feedback++; S.stats.maxInt = Math.max(S.stats.maxInt, I);
   Snd.play(stim.id); S.fx.push({ type: stim.fx, t: 0, dur: stim.fx === 'frost' ? 3 : 1.4, x: p.x, y: p.y });
   if (stim.id === 'shock') S.shake = 0.25;
@@ -1428,6 +1485,7 @@ function administer() {
     bump(B.responseEffects.collapse);
     interrupt([{ pose: 'react_' + stim.fx, facing: 'front', dur: 1.2 }, { pose: 'collapsed', facing: 'front', dur: 18, collapse: true }, { pose: 'sitfloor', facing: 'front', dur: 3 }]);
     say('collapse', 1);
+    if (S.terminal !== 'feral') startMedic();
     if (S.terminal === 'feral') { S.endEarlyAt = S.time + 3; say('feralCollapse', 1); }
     // A frail subject: overkill brings Medical, and Medical brings Security.
     else if (mod('medical') && I >= 8) { logEvent('medical-incident', entry); S.flags.medicalIncident = true; S.pendingEnding = { id: 'failed', t: 3 }; toast('Medical to Cell ' + cellNo() + '. Medical to Cell ' + cellNo() + '.', 'MEDICAL'); }
@@ -1520,6 +1578,7 @@ function costOf(item) {
 // Everything is gated by credits; the maintenance tickets still have to be filed in order.
 function shopBlocker(item) {
   if (item.requires && !S.upgrades.has(item.requires)) return 'Needs ' + D.shop.find(i => i.id === item.requires).name;
+  if (S.phase === 'review' && item.consumable && !item.repair) return 'From 09:00';
   return null;
 }
 function buy(item) {
@@ -1565,10 +1624,18 @@ function runProtocol() {
     logEvent('protocol-refused');
     return;
   }
-  const p = S.patient;
-  interrupt([]); p.dead = true; p.pose = 'collapsed'; p.collapsed = false; p.steps = []; p.step = null;
-  S.fx.push({ type: 'spark', t: 0, dur: 1.4, x: p.x, y: p.y }); S.shake = 0.6; Snd.play('shock');
+  // Every subject on every monitor. A Vessel elsewhere on the desk is left where it is.
+  let spared = 0;
+  eachCell(() => {
+    if (S.terminal === 'vessel') { spared++; return; }
+    const p = S.patient;
+    interrupt([]); p.dead = true; p.pose = 'collapsed'; p.collapsed = false; p.steps = []; p.step = null; p.bubble = null; p.hidden = false; p.out = false;
+    S.medic = null; S.repair = null;
+    S.fx.push({ type: 'spark', t: 0, dur: 1.4, x: p.x, y: p.y });
+  });
+  S.shake = 0.6; Snd.play('shock');
   toast('Protocol Zero authorized. Thank you, ' + S.name + '.');
+  if (spared) toast('Cell ' + stationOf(S.stations.find(id => cellField(id, 'terminal') === 'vessel')).cell + ' is not available for termination.', 'CONSOLE');
   S.pendingEnding = { id: 'brutalist', t: 4 };
 }
 
@@ -1624,44 +1691,65 @@ function startDesk() {
     if (S.terminal === 'vessel') p.steps = [{ move: SPOT.center }, { pose: 'stand', facing: 'front', dur: 4, bubble: fmt(B.terminals.vessel.lines[0]), chant: true }];
   });
   if (S.day === 1) showOpeningMemo();
-  else { closeModal(); toast('Day ' + S.day + ' of ' + CFG.totalDays + '. Six technicians on the board.'); }
+  else { closeModal(); toast('Day ' + S.day + ' of ' + CFG.totalDays + '. ' + (S.rivals.length + 1) + ' technicians on the board. ' + (cutDayOf(S.day) ? 'The lowest tally is cut at the end of day ' + cutDayOf(S.day) + '.' : 'No cut this window.')); }
+  if (S.day === CFG.fullMoonWarnDay) say('fullMoonWarn');
+  else if (S.day === CFG.fullMoonDay) say('fullMoon');
 }
 function endShift() {
   S.armed = false; S.endEarlyAt = 0;
   eachCell(() => { S.violation = null; if (S.inst) resolve(S.inst, 'allowed'); });
   const me = playerDay();
   S.credits += me.bonus; S.stats.earned += me.bonus;
-  let rows = board(true), rank = rows.findIndex(r => r.me) + 1, cut = rank === rows.length;
-  let spared = false;
+  const rows = board(true), rank = rows.findIndex(r => r.me) + 1;
+  const dmg = damageList(), penalty = damagePenalty(dmg);
+  if (penalty) { S.credits = Math.max(0, S.credits - penalty); logEvent('damage-penalty', { penalty, items: dmg.map(d => d.cell + ':' + d.kind) }); }
+  const rec = { day: S.day, earned: me.earned, bonus: me.bonus, total: me.total, rank, of: rows.length, opportunity: S.today.opportunity, missed: S.today.missed, feedback: S.today.feedback, state: stateNow().id, penalty, damage: dmg,
+    observed: S.today.observed || 0, medical: { n: S.today.medical || 0, cr: S.today.medicalCost || 0 }, scores: Object.fromEntries(rows.map(r => [r.name, r.score])) };
+  S.history.push(rec); logEvent('day-end', rec);
+  if (S.flags.escape) { ending('free'); return; }
+  // The three-day tally. On a cut day the lowest tally leaves the program and nobody replaces them.
+  let win = tallyRows(), wrank = win.findIndex(r => r.me) + 1;
+  const cutDay = isCutDay(S.day);
+  let cut = cutDay && wrank === win.length, spared = false;
   if (cut && anyCell(() => S.terminal === 'vessel')) {
     // Nobody is cut while the Vessel holds. The technician just above takes the fall.
     spared = true; cut = false;
-    const mine = rows.splice(rank - 1, 1)[0]; rows.splice(rows.length - 1, 0, mine); rank = rows.length - 1;
+    const mine = win.splice(wrank - 1, 1)[0]; win.splice(win.length - 1, 0, mine); wrank = win.length - 1;
   }
-  const dmg = damageList(), penalty = damagePenalty(dmg);
-  if (penalty) { S.credits = Math.max(0, S.credits - penalty); logEvent('damage-penalty', { penalty, items: dmg.map(d => d.cell + ':' + d.kind) }); }
-  const rec = { day: S.day, earned: me.earned, bonus: me.bonus, total: me.total, rank, of: rows.length, opportunity: S.today.opportunity, missed: S.today.missed, feedback: S.today.feedback, state: stateNow().id, penalty, damage: dmg };
-  S.history.push(rec); logEvent('day-end', rec);
-  if (S.flags.escape) { ending('free'); return; }
+  rec.window = { idx: windowIdx(S.day) + 1, rank: wrank, of: win.length, cutDay };
   let news = null;
-  if (!cut) {
-    const lowest = rows[rows.length - 1], idx = S.rivals.findIndex(r => r.name === lowest.name);
-    const nn = 'Tech. ' + COMP.newcomers[S.newcomerIdx++ % COMP.newcomers.length];
-    news = { cut: lowest.name, joined: nn, spared };
+  if (cutDay && !cut) {
+    const lowest = win[win.length - 1], idx = S.rivals.findIndex(r => r.name === lowest.name);
+    news = { cut: lowest.name, spared };
     // The cut technician comes back on the ledger in two days, as a subject.
     S.alumni.push(buildAlumnus({ name: lowest.name, day: S.day, drive: S.rivals[idx].drive }));
     if (S.alumni.length > 8) S.alumni.splice(0, S.alumni.length - 8);
-    S.rivals[idx] = { name: nn, drive: rand(COMP.newcomerDrive[0], COMP.newcomerDrive[1]) };
+    S.rivals.splice(idx, 1); S.noise.splice(idx, 1);
+    logEvent('cut', { name: lowest.name, window: rec.window.idx });
   }
   S.phase = 'review';
-  openReview(rows, rec, cut, news);
+  openReview(rows, rec, cut, news, win);
+}
+// Windows of three days. Cuts fall at the end of days 3, 6, 9 and 12; day 13 stands alone before the order.
+function windowIdx(day = S.day) { return Math.floor((day - 1) / CFG.cutEvery); }
+function windowStart(day = S.day) { return windowIdx(day) * CFG.cutEvery + 1; }
+function cutDayOf(day = S.day) { const e = windowStart(day) + CFG.cutEvery - 1; return e < CFG.totalDays - 1 ? e : 0; }
+function isCutDay(day = S.day) { return cutDayOf(day) === day; }
+function tallyRows(upToToday = false) {
+  const start = windowStart(S.day), sums = {}, add = (name, v) => { sums[name] = (sums[name] || 0) + v; };
+  for (const h of S.history) if (h.day >= start && h.day <= S.day && h.scores) for (const n in h.scores) add(n, h.scores[n]);
+  if (upToToday && S.phase === 'desk') for (const r of board()) add(r.name, r.score);
+  const alive = S.rivals.map(r => r.name).concat([S.name]);
+  const rows = alive.map(name => ({ name, score: Math.round(sums[name] || 0), me: name === S.name }));
+  rows.sort((a, b) => b.score - a.score || (a.me ? 1 : b.me ? -1 : 0));
+  return rows;
 }
 function nextDay() {
   const contact = S.today.warned + S.today.talks > 0;
   S.day++; S.time = 0; S.today = newToday(); rollNoise();
   eachCell(() => {
     const p = S.patient; p.steps = []; p.step = null; p.bubble = null; p.collapsed = false; p.hidden = false;
-    S.violation = null; S.inst = null; S.lastInst = null; S.fx = []; S.medicalUntil = 0; S.sedatedUntil = 0;
+    S.violation = null; S.inst = null; S.lastInst = null; S.fx = []; S.medicalUntil = 0; S.sedatedUntil = 0; S.medic = null;
   });
   S.flags.toastHour = 0; S.flags.confirmProtocol = false;
   morning(contact);
@@ -1693,7 +1781,8 @@ function ending(id, opts = {}) {
   const e = D.endings[id], p = S.patient;
   S.phase = 'ending'; S.endingId = id; S.endingOpts = opts; S.armed = false; S.pendingEnding = null; el.hint.textContent = '';
   el.dlg.hidden = true;
-  if (id === 'terminate' || id === 'brutalist') { p.dead = true; p.pose = 'collapsed'; p.bubble = null; p.hidden = false; if (id === 'terminate') { p.x = 42; p.y = 46; } }
+  if (id === 'terminate') { p.dead = true; p.pose = 'collapsed'; p.bubble = null; p.hidden = false; p.x = 42; p.y = 46; }
+  if (id === 'brutalist') eachCell(() => { if (S.terminal !== 'vessel') { S.patient.dead = true; S.patient.pose = 'collapsed'; S.patient.bubble = null; S.patient.hidden = false; } });
   if (id === 'free') p.gone = true;
   if (id === 'vessel') { p.vesselEnd = true; S.humBoost = 1; }
   if (id === 'terminate' && S.terminal === 'conspirator') addTraits({ sadism: 3 });
@@ -1754,7 +1843,7 @@ function showChoices(node) {
   el.dlgChoices.innerHTML = '';
   node.options.forEach((o, i) => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'choice'; b.id = 'choice-' + dlg.i + '-' + i;
-    b.textContent = o.text;
+    b.textContent = fmt(o.text);
     b.addEventListener('click', ev => {
       ev.stopPropagation(); Snd.play('click');
       addTraits(o.traits); logEvent('intro-choice', { prompt: node.text, choice: o.text, traits: o.traits });
@@ -1829,7 +1918,7 @@ function showOpeningMemo() {
   openModal(`
     <p class="eyebrow">Directive 01 · Day 1 of ${CFG.totalDays} · Cell ${CELL}</p>
     <h2>Shift orders for ${esc(S.name)}</h2>
-    <p>${esc(fmt(D.openingMemo))}</p>
+    ${fmt(D.openingMemo).split('\n').map(t => `<p>${esc(t)}</p>`).join('')}
     <ul class="memo-rules">${rules}</ul>
     <ol class="howto">
       <li>Flip <b>ARM</b> to enable the console.</li>
@@ -1854,7 +1943,7 @@ const REPORTS = {
 function showDirective(item) {
   Snd.play('memo');
   const n = ++S.directiveN, head = `<p class="eyebrow">Directive ${String(n).padStart(2, '0')} · Day ${S.day} · Cell ${cellNo()}</p>`;
-  let body;
+  let body, ledgerBtn = '';
   if (item.rule) {
     const rule = RULE[item.rule];
     body = `<h2>New prohibited behavior</h2><p>${esc(fmt(rule.memo || ''))}</p><p class="rule-new">${esc(rule.text)}</p>`;
@@ -1876,13 +1965,16 @@ function showDirective(item) {
       <p class="stamp">Status: ${t.from ? 'Transfer' : 'Admission'} complete</p>`;
     logEvent('directive', { transfer: t.to.id });
   } else {
-    const T = B.terminals[item.terminal];
+    const T = B.terminals[item.terminal], disc = item.terminal === 'hollow' && S.ledger && S.ledger.slots.find(x => x.discount && !x.taken);
     body = `<h2>Incident report: Cell ${cellNo()}</h2><p>${esc(fmt(REPORTS[item.terminal]))}</p>
-      <p class="stamp">Status: ${esc(T.label)}</p><p class="sig">“${esc(fmt(T.director[0]))}”</p>`;
+      <p class="stamp">Status: ${esc(T.label)}</p><p class="sig">“${esc(fmt(T.director[0]))}”</p>
+      ${disc ? `<p>${esc(fmt(INTAKE.director.offerMemo).replaceAll('{entry}', disc.entry.name).replaceAll('{pct}', Math.round(disc.discount * 100)))}</p>` : ''}`;
+    if (disc) ledgerBtn = `<button type="button" class="btn sm" id="memo-ledger">See the ledger</button>`;
   }
   openModal(`${head}${body}<p class="sig">— ${esc(D.director.name)}</p>
-    <div class="actions"><button type="button" class="btn" id="memo-ok">Initial and file</button></div>`);
+    <div class="actions">${ledgerBtn}<button type="button" class="btn" id="memo-ok">Initial and file</button></div>`);
   $('memo-ok').addEventListener('click', () => { Snd.play('click'); closeModal(); });
+  if (ledgerBtn) $('memo-ledger').addEventListener('click', () => { Snd.play('click'); closeModal(); shopFold.intake = false; openShop(); const d = el.modalBody.querySelector('details[data-group=intake]'); if (d) d.scrollIntoView(); });
   $('memo-ok').focus({ preventScroll: true });
 }
 // Base rules in clipboard order, then the rules the Director added along the way.
@@ -1966,7 +2058,7 @@ function foldGroup(kind, label, meta, inner) {
   return `<details class="shop-group" data-group="${kind}"${open ? ' open' : ''}><summary><h3>${label}</h3>${meta ? `<small>${esc(meta)}</small>` : ''}</summary>${inner}</details>`;
 }
 function openShop() {
-  if (S.phase !== 'desk') return;
+  if (S.phase !== 'desk' && !(S.phase === 'review' && S.reviewArgs)) return;
   const groups = [['stimulus', 'Feedback stimuli', ''], ['upgrade', 'Console upgrades', ''],
     ['station', 'Monitoring stations', 'Each station adds a monitor and a cell to this console. The Intake Ledger can admit a subject to an empty station, and the console routes to one station at a time.'],
     ['comfort', 'Subject comfort', `Each comfort item raises intercom pay and the bonus for a day with no missed infractions. Rapport: ${comfortCount()} item${comfortCount() === 1 ? '' : 's'}, intercom pays ${warnMult().toFixed(1)}x, perfect day +${Math.round(perfectRate() * 100)}%.`],
@@ -2006,7 +2098,7 @@ function openShop() {
     <p class="fine">${tut ? 'Orientation stock. The full catalogue opens on day 1.' : 'Spending never lowers your rank. Only credits earned today count on the board.'}${!tut && S.stations.length > 1 ? ` Console routed to Station ${S.focus}, Cell ${cellNo()}: consumables are sent there.` : ''}</p>
     ${html}
     ${tut ? '' : foldGroup('intake', 'Intake Ledger', S.transfers.length ? `${S.transfers.length} scheduled for 06:00` : S.ledger && S.ledger.slots.length && S.day >= INTAKE.unlockDay ? `${S.ledger.slots.filter(x => !x.taken).length} names` : '', ledgerHtml())}
-    <div class="actions"><button type="button" class="btn" id="m-close">Log off</button></div>`, 'terminal');
+    <div class="actions"><button type="button" class="btn" id="m-close">${S.phase === 'review' ? 'Back to the report' : 'Log off'}</button></div>`, 'terminal');
   el.modal.dataset.kind = 'shop';
   if (wasOpen) el.modal.scrollTop = scroll;
   el.modalBody.querySelectorAll('details.shop-group').forEach(d => d.addEventListener('toggle', () => { shopFold[d.dataset.group] = !d.open; }));
@@ -2017,7 +2109,7 @@ function openShop() {
   el.modalBody.querySelectorAll('[data-intake]').forEach(b => b.addEventListener('click', () => buySubject(+b.dataset.intake)));
   el.modalBody.querySelectorAll('[data-dest]').forEach(s => s.addEventListener('change', () => { const x = S.ledger && S.ledger.slots[+s.dataset.dest]; if (x) { x.dest = s.value; Snd.play('click'); openShop(); } }));
   el.modalBody.querySelectorAll('[data-reroll]').forEach(b => b.addEventListener('click', rerollLedger));
-  $('m-close').addEventListener('click', () => { el.modal.dataset.kind = ''; S.flags.confirmProtocol = false; closeModal(); });
+  $('m-close').addEventListener('click', () => { el.modal.dataset.kind = ''; S.flags.confirmProtocol = false; closeModal(); if (S.phase === 'review' && S.reviewArgs) openReview(...S.reviewArgs); });
   if (!wasOpen) $('m-close').focus({ preventScroll: true });
 }
 function dominantTrait() {
@@ -2029,35 +2121,59 @@ function boardTable(rows) {
   return `<table class="board"><thead><tr><th>#</th><th>Technician</th><th>Credits today</th></tr></thead><tbody>${rows.map((r, i) =>
     `<tr class="${r.me ? 'me' : ''} ${i === rows.length - 1 ? 'cutrow' : ''}"><td>${i + 1}</td><td>${esc(r.name)}${i === rows.length - 1 ? ' <span class="cut">Cut</span>' : ''}</td><td>${r.score}</td></tr>`).join('')}</tbody></table>`;
 }
-function openReview(rows, rec, cut, news) {
-  const n = rows.length, lowest = rows[n - 1].name;
+function openReview(rows, rec, cut, news, win) {
+  S.reviewArgs = [rows, rec, cut, news, win];
+  const w = rec.window || { idx: 1, rank: rec.rank, of: rows.length, cutDay: false }, n = w.of, wrank = w.rank;
+  const cutAt = cutDayOf(S.day), left = cutAt ? cutAt - S.day : 0, leftTxt = left === 1 ? 'one day' : left + ' days';
+  const below = win && win[wrank] ? win[wrank] : null, above = win && wrank > 1 ? win[wrank - 2] : null, mine = win ? win[wrank - 1] : null;
   let head, line = '';
-  if (cut) head = 'You finished last.';
-  else if (news && news.spared) { head = 'You finished last. Nobody noticed.'; line = 'The comparison does not apply to you any more, {name}. Keep the subject talking.'; }
-  else if (rec.rank === 1) { head = 'Top of the board.'; line = moodLine('rankTop'); }
-  else if (rec.rank === n - 1) { head = 'Second from the bottom.'; line = moodLine('rankLow').replaceAll('{rival}', lowest); }
-  else { head = 'Rank ' + rec.rank + ' of ' + n + '.'; line = pick(D.lines.rankMid); }
+  if (cut) head = 'The window closed with you last on the tally.';
+  else if (news && news.spared) { head = 'You finished the window last. Nobody noticed.'; line = 'The comparison does not apply to you any more, {name}. Keep the subject talking.'; }
+  else if (news) { head = 'Window ' + w.idx + ' closed. ' + news.cut + ' is cut.'; line = pick(D.lines.windowCut).replaceAll('{rival}', news.cut); }
+  else if (!cutAt) { head = 'The last shift. One technician left beside you.'; line = pick(D.lines.rankMid); }
+  else if (wrank === 1) { head = 'Top of the tally, ' + leftTxt + ' to the cut.'; line = moodLine('rankTop'); }
+  else if (wrank === n) { head = 'Below the line, ' + leftTxt + ' to the cut.'; line = pick(D.lines.windowLast).replaceAll('{left}', leftTxt.charAt(0).toUpperCase() + leftTxt.slice(1)); }
+  else if (wrank === n - 1) { head = 'One above the line, ' + leftTxt + ' to the cut.'; line = moodLine('rankLow').replaceAll('{rival}', below ? below.name : ''); }
+  else { head = 'Rank ' + wrank + ' of ' + n + ' on the tally, ' + leftTxt + ' to the cut.'; line = pick(D.lines.rankMid); }
+  const gap = !win ? '' : cut ? '' : wrank === n ? `You are ${(above ? above.score : 0) - mine.score} credits below the line.` : below ? `The technician below you is ${mine.score - below.score} credits behind.` : '';
   const bonusLine = rec.bonus ? `Perfect day: no missed infractions, so your ${comfortCount()} comfort item${comfortCount() === 1 ? '' : 's'} added ${rec.bonus} credits.`
     : rec.missed ? `You missed ${rec.missed} infraction${rec.missed === 1 ? '' : 's'}, so there was no perfect-day bonus.` : '';
   const changes = S.today.changes.filter(c => c.to !== c.from).slice(-4)
     .map(c => `<li>${esc(fmt(NODE[c.to].label))} <small>(was: ${esc(fmt(NODE[c.from].label).toLowerCase())})</small></li>`).join('');
   const final = S.day + 1 >= CFG.totalDays;
   openModal(`
-    <p class="eyebrow">Day ${S.day} of ${CFG.totalDays} · 17:00 · Daily comparison</p>
+    <p class="eyebrow">Day ${S.day} · 17:00 · Window ${w.idx}${cutAt ? `, day ${S.day - windowStart(S.day) + 1} of ${CFG.cutEvery}` : ''} · ${n} technicians</p>
     <h2>${head}</h2>
     ${line ? `<p class="sig">“${esc(fmt(line))}” — ${esc(D.director.name)}</p>` : ''}
-    ${boardTable(rows)}
-    <p>You earned ${rec.earned} credits today${rec.bonus ? ` plus a ${rec.bonus} credit bonus` : ''}. ${bonusLine}</p>
+    ${win ? tallyTable(win, rows, !!cutAt, S.day === cutAt) : boardTable(rows)}
+    <p>You earned ${rec.earned} credits today${rec.bonus ? ` plus a ${rec.bonus} credit bonus` : ''}${rec.observed ? `, ${rec.observed} of it observation credit` : ''}. ${bonusLine} ${gap}</p>
     ${changes ? `<h3>Changes observed today</h3><ul class="memo-rules">${changes}</ul>` : ''}
     ${rec.damage && rec.damage.length ? `<h3>Cell maintenance</h3><ul class="memo-rules">${rec.damage.map(d => `<li>Cell ${d.cellNo}: ${esc(DMG.labels[d.kind])} <small>(day ${d.days} unrepaired, ${DMG.penalty * d.days} cr)</small></li>`).join('')}</ul>
     <p class="news">${rec.penalty} credits deducted for damage left standing at 17:00. File the tickets at REQ-9. The deduction grows every day an item stands.</p>` : ''}
-    ${news ? `<p class="news">${esc(news.cut)} has been cut from the program. ${esc(news.joined)} transfers in tomorrow.</p>` : ''}
-    ${cut ? `<p class="news">The lowest earner is cut. That is you.</p>` : ''}
+    ${rec.medical && rec.medical.n ? `<p class="news">Medical assistance provided ${rec.medical.n} time${rec.medical.n === 1 ? '' : 's'}: ${rec.medical.cr} cr deducted.</p>` : ''}
+    ${news ? `<p class="news">${esc(news.cut)} has been cut from the program.<br>${S.rivals.length + 1} technicians remain</p>` : ''}
+    ${cut ? `<p class="news">The lowest tally is cut. That is you.</p>` : ''}
+    ${cut || tut ? '' : `<p class="news">${reqReminder()}</p>`}
     <div class="actions">
-      <button type="button" class="btn" id="r-next">${cut ? 'Hand in your badge' : final ? 'Report for the final day' : 'Begin day ' + (S.day + 1)}</button>
+      ${cut || tut ? '' : `<button type="button" class="btn" id="r-shop">Open REQ-9</button>`}
+      <button type="button" class="btn" id="r-next">${cut ? 'Hand in your badge' : final ? 'Report for the termination order' : 'Begin day ' + (S.day + 1)}</button>
     </div>`);
-  $('r-next').addEventListener('click', () => { Snd.play('switch'); if (cut) ending('failed'); else nextDay(); });
+  $('r-next').addEventListener('click', () => { Snd.play('switch'); S.reviewArgs = null; if (cut) ending('failed'); else nextDay(); });
+  if ($('r-shop')) $('r-shop').addEventListener('click', () => { Snd.play('click'); openShop(); });
   $('r-next').focus({ preventScroll: true });
+}
+// The reminder on the 17:00 report: balance, what is within reach, what is waiting.
+function reqReminder() {
+  const owned = i => !i.consumable && (S.upgrades.has(i.id) || (i.stimulus && S.owned.has(i.stimulus)));
+  const budget = D.shop.filter(i => !i.repair && i.kind !== 'protocol' && !owned(i) && !shopBlocker(i) && (!i.consumable || i.kind === 'maintenance') && costOf(i) <= S.credits && (i.kind !== 'maintenance' || S.flags.doorAsked)).length;
+  return 'A reminder that REQ-9 purchases are available. Balance ' + S.credits + ' credits, ' + budget + (budget === 1 ? ' item' : ' items') + ' in budget.';
+}
+// The window tally beside today's credits. On the cut day the last row is marked; otherwise it is only below the line.
+function tallyTable(win, rows, hasCut, cutToday) {
+  const today = Object.fromEntries(rows.map(r => [r.name, r.score]));
+  return `<table class="board"><thead><tr><th>#</th><th>Technician</th><th>Window tally</th><th>Today</th></tr></thead><tbody>${win.map((r, i) => {
+    const last = i === win.length - 1 && hasCut;
+    return `<tr class="${r.me ? 'me' : ''} ${last ? 'cutrow' : ''}"><td>${i + 1}</td><td>${esc(r.name)}${last ? ` <span class="cut">${cutToday ? 'Cut' : 'Below the line'}</span>` : ''}</td><td>${r.score}</td><td>${today[r.name] ?? 0}</td></tr>`; }).join('')}</tbody></table>`;
 }
 function openEnding(e, id) {
   const top = dominantTrait();
@@ -2068,6 +2184,7 @@ function openEnding(e, id) {
   }).join('');
   const st = S.stats;
   const survived = id === 'failed' || id === 'refused' ? S.day - (id === 'failed' ? 1 : 0) : S.day;
+  const served = servedAll(id);
   openModal(`
     <p class="eyebrow">Ending · Day ${S.day} of ${CFG.totalDays}</p>
     <h2 class="ending-title">${esc(e.title)}</h2>
@@ -2076,12 +2193,13 @@ function openEnding(e, id) {
       <dt>Days survived</dt><dd>${survived}</dd><dt>Credits earned</dt><dd>${st.earned}</dd>
       <dt>Feedback given</dt><dd>${st.feedback}</dd><dt>Warnings</dt><dd>${st.warned}</dd>
       <dt>Highest intensity</dt><dd>${st.maxInt || '–'}</dd><dt>Collapses</dt><dd>${st.collapses}</dd>
-      <dt>Subject ${esc(S.subject.id)}</dt><dd>${esc(stateNow().label)}</dd><dt>Behaviors seen</dt><dd>${Object.keys(S.seen).length} of ${B.nodes.length}</dd>
+      <dt>Subjects handled</dt><dd>${served.length}</dd><dt>Behaviors seen</dt><dd>${served.reduce((a, r) => a + r.seen, 0)}</dd>
     </dl>
+    <h3>Subjects</h3>
+    ${servedTable(served)}
     <h3>Psychological assessment</h3>
     <ul class="traits">${bars}</ul>
     <div class="verdict"><p>“${esc(fmt(D.assessments[top]))}” — ${esc(D.director.name)}</p></div>
-    <p class="fine">${esc(D.endingsNote)}</p>
     <div class="actions"><button type="button" class="btn" id="r-restart">Play again</button></div>`);
   $('r-restart').addEventListener('click', () => { clearSave(); location.hash = ''; location.reload(); });
   $('r-restart').focus({ preventScroll: true });
@@ -2167,8 +2285,11 @@ function drawCell(t) {
   rect(c, 63, 5, 15, 20, G[3]); rect(c, 64, 6, 13, 19, G[2]);
   rect(c, 67, 9, 7, 5, G[0]); for (let x = 68; x < 74; x += 2) rect(c, x, 9, 1, 5, G[2]);
   rect(c, 65, 16, 1, 2, G[4]);
-  if (p.gone || p.out) { rect(c, 64, 6, 12, 19, G[0]); rect(c, 76, 6, 2, 19, G[3]); }
+  const dOpen = p.gone || p.out ? 1 : S.repair ? repairDoor(S.repair) : S.medic ? repairDoor(S.medic) : 0;
+  if (dOpen >= 1) { rect(c, 64, 6, 12, 19, G[0]); rect(c, 76, 6, 2, 19, G[3]); }
+  else if (dOpen > 0) { const w = Math.max(1, Math.round(12 * dOpen)); rect(c, 64, 6, w, 19, G[0]); rect(c, 64 + w, 6, 13 - w, 19, G[2]); rect(c, 76, 6, 2, 19, G[3]); }
   else if (S.damage.door) { rect(c, 64, 6, 3, 19, G[0]); rect(c, 66, 7, 1, 17, G[1]); }
+  if ((S.repair || S.medic) && dOpen >= 0.5) drawGuard(c, 70, 25, t);
   if (S.upgrades.has('mural')) { rect(c, 3, 5, 12, 9, G[3]); rect(c, 4, 6, 10, 4, G[2]); rect(c, 4, 10, 10, 3, G[1]); for (let x = 4; x < 14; x += 2) rect(c, x, 10, 1, 2, G[3]); rect(c, 9, 5, 1, 9, G[3]); }
   if (S.upgrades.has('radio')) { rect(c, 6, 42, 5, 3, G[3]); rect(c, 7, 43, 1, 1, G[1]); rect(c, 10, 39, 1, 3, G[2]); }
   if (S.upgrades.has('letters')) { rect(c, 22, 30, 3, 2, G[4]); rect(c, 24, 29, 3, 2, G[4]); }
@@ -2216,7 +2337,8 @@ function drawCell(t) {
   if (!under && !p.gone && !p.hidden) drawPatient(c, p, t);
   if (p.hidden && medical() && Math.floor(t * 2) % 2 === 0) { rect(c, 22, 26, 40, 9, G[0]); textC(c, 'TRANSFER', 42, 28, G[4]); }
   if (p.out && Math.floor(t * 2) % 2 === 0) { rect(c, 6, 26, 72, 9, G[0]); textC(c, 'SUBJECT OUT OF CELL', 42, 28, G[4]); }
-  if (S.repair) drawCrew(c, S.repair, t);
+  if (S.repair) { const ph = repairPhase(S.repair); if (ph) drawCrew(c, S.repair, t, ph); }
+  if (S.medic) for (const m of medicPhase(S.medic)) drawMedic(c, m, t);
   // effects
   for (const f of S.fx) drawFx(c, f, t);
   if (p.bubble && !p.hidden) drawBubble(c, p, p.bubble, t);
@@ -2262,17 +2384,69 @@ function drawNoFeed(c, s, t) {
   }
   feedPost(c);
 }
-// The maintenance crew: one figure in coveralls and a cap, a bucket, and an arm that keeps working.
-function drawCrew(c, r, t) {
-  const [x, y] = { walls: [40, 30], floor: [34, 52], bed: [24, 41], door: [60, 31], lens: [42, 60], pads: [12, 41] }[r.kind] || [42, 46];
-  const k = Math.floor(t * 4) % 2;
+// The maintenance crew: the door opens, a guard takes the doorway, one figure in coveralls and a
+// cap walks in with a bucket, works, walks out, and the door closes behind them.
+const CREW = { open: 0.7, walk: 1.2, close: 0.6, doorway: [70, 27] };
+function crewSpot(kind) { return { walls: [40, 30], floor: [34, 52], bed: [24, 41], door: [60, 31], lens: [42, 60], pads: [12, 41] }[kind] || [42, 46]; }
+function repairDur() { return DMG.crew + CREW.open + CREW.walk * 2 + CREW.close; }
+function repairDoor(r) { return r.t < CREW.open ? r.t / CREW.open : r.t > r.dur - CREW.close ? Math.max(0, (r.dur - r.t) / CREW.close) : 1; }
+function repairPhase(r) { return crewPhase(r, crewSpot(r.kind)); }
+function crewPhase(r, spot) {
+  const d = CREW.doorway, inEnd = CREW.open + CREW.walk, outStart = r.dur - CREW.close - CREW.walk;
+  const lerp = (a, b, f) => [Math.round(a[0] + (b[0] - a[0]) * f), Math.round(a[1] + (b[1] - a[1]) * f)];
+  if (r.t < CREW.open || r.t >= r.dur - CREW.close) return null;
+  if (r.t < inEnd) return { pos: lerp(d, spot, (r.t - CREW.open) / CREW.walk), walking: true };
+  if (r.t >= outStart) return { pos: lerp(spot, d, (r.t - outStart) / CREW.walk), walking: true };
+  return { pos: spot, walking: false };
+}
+// Two medics: in through the door to either side of the subject, kneeling, one on the chest.
+function medicSpots(m) {
+  const [x, y] = m.at;
+  return [[Math.max(8, x - 11), y + 2], [Math.min(76, x + 14), y + 2]];
+}
+function medicPhase(m) {
+  return medicSpots(m).map((spot, i) => { const ph = crewPhase({ ...m, t: m.t - i * 0.25 }, spot); return ph && { ...ph, chest: i === 0 }; }).filter(Boolean);
+}
+// White coat, cap with a mark, a bag. Kneeling at the subject with the hands working.
+function drawMedic(c, m, t) {
+  const [x, y] = m.pos, k = Math.floor(t * (m.walking ? 6 : 5)) % 2;
+  if (m.walking) {
+    rect(c, x - 2, y - 2 - k, 2, 2 + k, G[3]); rect(c, x + 1, y - 2 - (1 - k), 2, 2 + (1 - k), G[3]);
+    rect(c, x - 2, y - 13, 5, 2, G[4]); rect(c, x - 1, y - 13, 1, 1, G[1]);
+    rect(c, x - 2, y - 11, 5, 3, G[3]); rect(c, x - 1, y - 10, 1, 1, G[1]); rect(c, x + 1, y - 10, 1, 1, G[1]);
+    rect(c, x - 3, y - 8, 7, 6, G[4]); rect(c, x, y - 8, 1, 6, G[3]);
+    rect(c, x + 4, y - 6, 2, 1, G[4]); rect(c, x - 6, y - 4, 3, 3, G[1]); rect(c, x - 5, y - 5, 1, 1, G[4]);
+    return;
+  }
+  // kneeling: shorter figure, arms down on the subject
+  rect(c, x - 3, y - 3, 7, 3, G[3]);
+  rect(c, x - 2, y - 10, 5, 2, G[4]); rect(c, x - 1, y - 10, 1, 1, G[1]);
+  rect(c, x - 2, y - 8, 5, 3, G[3]); rect(c, x - 1, y - 7, 1, 1, G[1]); rect(c, x + 1, y - 7, 1, 1, G[1]);
+  rect(c, x - 3, y - 5, 7, 3, G[4]); rect(c, x, y - 5, 1, 3, G[3]);
+  if (m.chest) { rect(c, x + 4, y - 5 + k, 3, 1, G[4]); rect(c, x + 6, y - 4 + k, 2, 1, G[3]); }
+  else { rect(c, x - 6, y - 5, 3, 1, G[4]); rect(c, x - 7, y - 4, 2, 1, G[3]); if (k) rect(c, x - 6, y - 8, 1, 2, G[1]); }
+  rect(c, x + (m.chest ? -7 : 4), y - 3, 3, 3, G[1]); rect(c, x + (m.chest ? -6 : 5), y - 4, 1, 1, G[4]);
+}
+// A guard in the open doorway: dark uniform, cap, belt, facing the cell.
+function drawGuard(c, x, y, t) {
+  rect(c, x - 2, y - 13, 5, 2, G[1]); rect(c, x - 3, y - 12, 7, 1, G[1]);
+  rect(c, x - 2, y - 11, 5, 3, G[3]); rect(c, x - 1, y - 10, 1, 1, G[0]); rect(c, x + 1, y - 10, 1, 1, G[0]);
+  rect(c, x - 3, y - 8, 7, 6, G[1]); rect(c, x - 3, y - 5, 7, 1, G[3]); rect(c, x, y - 8, 1, 3, G[2]);
+  rect(c, x - 5, y - 7, 2, 4, G[1]); rect(c, x + 4, y - 7, 2, 4, G[1]);
+  rect(c, x - 2, y - 2, 2, 2, G[1]); rect(c, x + 1, y - 2, 2, 2, G[1]);
+  if (Math.floor(t * 2) % 2) rect(c, x + 5, y - 9, 1, 1, G[4]); // the radio light
+}
+function drawCrew(c, r, t, ph = { pos: crewSpot(r.kind), walking: false }) {
+  const [x, y] = ph.pos;
+  const k = ph.walking ? Math.floor(t * 6) % 2 : Math.floor(t * 4) % 2;
+  if (ph.walking) { rect(c, x - 2, y - 2 - k, 2, 2 + k, G[2]); rect(c, x + 1, y - 2 - (1 - k), 2, 2 + (1 - k), G[2]); }
   rect(c, x - 2, y - 13, 5, 2, G[2]); rect(c, x - 3, y - 12, 1, 1, G[2]);
   rect(c, x - 2, y - 11, 5, 3, G[4]); rect(c, x - 1, y - 10, 1, 1, G[2]); rect(c, x + 1, y - 10, 1, 1, G[2]);
   rect(c, x - 3, y - 8, 7, 6, G[1]); rect(c, x - 3, y - 8, 7, 1, G[2]); rect(c, x, y - 7, 1, 4, G[2]);
-  rect(c, x - 2, y - 2, 2, 2, G[2]); rect(c, x + 1, y - 2, 2, 2, G[2]);
-  rect(c, x + 4, y - 7 - k, 2, 1, G[1]); rect(c, x + 6, y - 8 - k, 1, 1, G[4]);
+  if (!ph.walking) { rect(c, x - 2, y - 2, 2, 2, G[2]); rect(c, x + 1, y - 2, 2, 2, G[2]); }
+  if (ph.walking) rect(c, x + 4, y - 6, 2, 1, G[1]); else { rect(c, x + 4, y - 7 - k, 2, 1, G[1]); rect(c, x + 6, y - 8 - k, 1, 1, G[4]); }
   rect(c, x - 6, y - 3, 3, 3, G[3]); rect(c, x - 6, y - 4, 3, 1, G[2]);
-  if (k) { rect(c, x + 7, y - 10, 1, 1, G[2]); rect(c, x + 8, y - 12, 1, 1, G[2]); }
+  if (k && !ph.walking) { rect(c, x + 7, y - 10, 1, 1, G[2]); rect(c, x + 8, y - 12, 1, 1, G[2]); }
 }
 // Quiet behaviors slip past the Motion Alert unless the Audio Feed is installed.
 function alertShowing() { return S.upgrades.has('alert') && S.violation && !S.violation.caught && (!S.violation.quiet || S.upgrades.has('audio')); }
@@ -2978,9 +3152,9 @@ if (jump) {
   const d = clamp(+jump[1], 1, CFG.totalDays);
   S.day = d; S.credits = 60 * d;
   for (let i = 1; i < d; i++) {
-    const r = S.rivals.reduce((lo, x, j) => x.drive < S.rivals[lo].drive ? j : lo, 0);
-    S.rivals[r] = { name: 'Tech. ' + COMP.newcomers[S.newcomerIdx++ % COMP.newcomers.length], drive: rand(COMP.newcomerDrive[0], COMP.newcomerDrive[1]) };
-    S.history.push({ day: i, opportunity: 60 + i * 12 });
+    const opp = 60 + i * 12, scores = Object.fromEntries(S.rivals.map(r => [r.name, Math.round(opp * r.drive * 0.9)]).concat([[S.name, Math.round(opp * 0.95)]]));
+    S.history.push({ day: i, opportunity: opp, scores });
+    if (isCutDay(i)) { const r = S.rivals.reduce((lo, x, j) => x.drive < S.rivals[lo].drive ? j : lo, 0); S.rivals.splice(r, 1); S.noise.splice(r, 1); }
   }
   D.rules.forEach(r => { if (r.unlockDay < d) { S.active.add(r.id); S.flags['memo_' + r.id] = true; } });
   if (jump[2]) {
@@ -3007,7 +3181,6 @@ if (jump) {
 // The Director walks the player through the console on a volunteer in Cell 2. The run is
 // snapshotted first and restored afterwards, so nothing done here carries into day 1.
 const ORI = D.orientation;
-let tut = null;
 function subjId() { return S.subject.id; }
 function cellNo() { return S.subject.cell || CELL; }
 function snapshot() {
@@ -3122,6 +3295,7 @@ function step(dt) {
 function stepCell(dt) {
   S.humBoost = Math.max(0, S.humBoost - dt * 0.3);
   if (S.repair) { S.repair.t += dt; if (S.repair.t >= S.repair.dur) finishRepair(); }
+  if (S.medic) { S.medic.t += dt; if (S.medic.t >= S.medic.dur) finishMedic(); }
   if (!S.patient.dead && !S.patient.gone) updatePatient(dt);
   // Trait-scheduled behaviors (the alumnus's 17:00 glance at the camera).
   if (mod('scheduled')) {
@@ -3166,7 +3340,7 @@ function sim(seconds, bot) {
 window.ELDRITCH_DEBUG = { warn, administer, moveFamily, buy: id => buy(D.shop.find(i => i.id === id)), toggleArm, turnKnob, turnDial, board, ending, endShift, sim, step,
   startDesk, nextDay, enterTerminal, drift, NODE, RULE, axisTop, stateNow, liveRank, closeModal, openFile, openShop, openRules, planNode, drawCell, cell: cell.canvas,
   buySubject, rerollLedger, rollLedger, intake, mergeMods, ledgerPrice, SUBJ, routeTo, useCell, cellField, destBlocker, liveStations, occupied, rebuildDesk,
-  breakItem, damageList, damageTick, buyRepair, startRepair, finishRepair, wreck, DMG };
+  breakItem, damageList, damageTick, buyRepair, startRepair, finishRepair, startMedic, wreck, DMG };
 el.hint.textContent = 'Best with a mouse and keyboard. Press M to mute.';
 canvas.tabIndex = 0;
 requestAnimationFrame(frame);

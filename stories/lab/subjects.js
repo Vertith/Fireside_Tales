@@ -373,7 +373,7 @@ window.ELDRITCH_SUBJECTS = {
       history: ['The file is one page.', 'The page is blank.', 'The intake officer signed it anyway.', ''],
       note: 'Do not read the file aloud.',
       replies: ['...', '...', 'YOU.'],
-      traits: ['attuned', 'brittle'], sealed: 2, cost: 0, directorOnly: true, minDay: 10,
+      traits: ['attuned', 'brittle'], sealed: 2, cost: 0, directorOnly: true, minDay: 7,
       kin: { who: 'other', name: 'THE OTHER ONE', they: 'it', day: 'always' },   // "DOES IT KNOW WHERE I AM?" The blank file has no bars: there is nothing on it to redact.
       director: 'A gift. Do not thank me.', sprite: { skin: '#cfcfcf', hair: '#cfcfcf', suit: '#8c9aa8' }, pronoun: 'they',
       axisOverride: { fracture: 40 } },
@@ -434,7 +434,7 @@ window.ELDRITCH_SUBJECTS = {
     // and shop traits in localStorage. On the next run that name can appear in the ledger as an
     // alumnus, with traits mapped from what the player bought last time.
     self: {
-      enabled: true, chance: 0.5, fromDay: 4,
+      enabled: true, chance: 0.5, fromDay: 3,
       traitMap: { sadism: 'violent', empathy: 'sociable', obedience: 'suggestible', curiosity: 'attuned', authoritarianism: 'defiant' },
       history: ['Transferred internally. Prior clearance revoked.', 'Cut from the program on day {day} of the previous cycle.', 'Records incomplete. Query sent to Personnel.', 'Asked for Cell 4 by number.'],
       kin: { who: 'subject', name: 'ELIAS', they: 'he', day: 'Tuesday' },   // the one they left in Cell 4
@@ -490,8 +490,9 @@ window.ELDRITCH_SUBJECTS = {
     // The Director's ledger lines. `offer` fires the morning the subject enters Hollow (he wants him gone).
     director: {
       open:        'REQ-9 now carries an intake ledger. Phase 1 clearance permits one subject per cell. Choose as you would a tool.',
-      offer:       'Your subject has healed, {name}. A healed subject is of no use to us. The ledger has three names on it this morning. One of them is discounted.',
+      offer:       'Looks like you\'ve killed their spirit, {name}. Might be useful... In the meantime, the ledger has a new name for you this morning, at a discount.',
       bought:      'Transfer scheduled for 06:00. Finish the day. The subject is still yours until then.',
+      offerMemo:   'A replacement is offered. {entry} is on the ledger this morning at {pct}% off. Requisition them and this one is transferred out at 06:00 tomorrow.',
       alumnusSeen: 'You may recognise the surname. The ward is a small place.',
       tooSoon:     'Another one? The Ministry charges double for indecision.',
       blank:       'Subject 0-41 has no file because nothing about them fits on a form. Take them. I insist, in the way that I do.',

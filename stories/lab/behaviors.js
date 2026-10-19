@@ -25,6 +25,8 @@ window.ELDRITCH_BEHAVIORS = {
     itemScale: 0.5,         // multiplies itemEffects (comfort items, sedative)
     relapseUntil: 75, relapseMax: 0.2,       // a family on a compliant node still slips back into its old infraction, less often as compliance nears this
     decayScale: 1,          // multiplies axes[].decayPerDay
+    fullMoonGap: 0.7, fullMoonDrift: 10, // full moon day: infraction gaps shrink, drifts start 10 points lower
+    observeCredit: 0.5,     // a behavior change earned by ignoring pays back this share of the ignored infractions when first seen
     doorAskTrust: 30,       // a subject at this much trust asks about the door out loud, which puts the door tickets on the REQ-9
     talkPerDay: 6,          // intercom conversations after this many a day only count a third
     terminalAt: 80,         // dominant axis at or above this, the next morning, enters a terminal state
@@ -118,7 +120,7 @@ window.ELDRITCH_BEHAVIORS = {
       bubble: ['OL SONF VORSG', 'GOHO IAD BALT', 'LANSH CALZ VONPHO', 'SOBRA ZOL ROR'],
       director: 'That is not a language they know. Write down what you can.',
       memo: { id: 'tongues', short: 'TONGUE', text: 'Do not speak in the Channel\'s tongue.', severity: 3, credits: 20, weight: 3, duration: 6.0,
-              text2: '{subject} has begun speaking in a register they were not taught. This is prohibited. It is also, for the record, remarkable.' } },
+              text2: 'Subjects have begun speaking in a register they were not taught. This is prohibited. It is also, for the record, remarkable.' } },
     { id: 'speak_permission',family: 'speak', tier: 1, axis: 'compliance', label: 'Asks permission to speak', pose: 'speak', at: 'center', facing: 'front', dur: 3.0, rule: null, creditMult: 0, weight: 2, onPerform: { compliance: 0.5 },
       bubble: ['MAY I SPEAK?', 'PERMISSION TO SPEAK?', 'IS IT ALLOWED?'], director: 'The subject is asking. Did you teach them that?',
       // If the player answers WARN during this node, they speak for 3 s: allowed, trust +1, no credits. If ignored, they sit down.
@@ -135,7 +137,7 @@ window.ELDRITCH_BEHAVIORS = {
     { id: 'door',            family: 'door', tier: 0, axis: null, label: 'Bangs on the door', pose: 'bang', at: 'door', facing: 'back', dur: 4.5, rule: 'door', creditMult: 1.0, weight: 3 },
     { id: 'door_kick',       family: 'door', tier: 1, axis: 'defiance', label: 'Kicks the door', pose: 'kick', at: 'door', facing: 'back', dur: 4.5, rule: 'door', creditMult: 1.5, weight: 3, onPerform: { defiance: 0.7 },
       bubble: ['OPEN IT!'], director: 'The door is rated for that. The subject is not.', memo: { id: 'strike', short: 'STRIKE', text: 'Do not strike the door or walls.', severity: 2, credits: 12, weight: 2, duration: 4.5,
-      text2: '{subject} has struck fixtures in Cell 4. Striking is prohibited. Repairs will be charged to the responsible technician.' } },
+      text2: 'Subjects have struck fixtures in their cells. Striking is prohibited. Repairs will be charged to the responsible technician.' } },
     { id: 'door_line',       family: 'door', tier: 1, axis: 'compliance', label: 'Stops at the door line', pose: 'stand', at: 'doorline', facing: 'back', dur: 3.5, rule: null, weight: 2, onPerform: { compliance: 0.4 },
       director: 'The subject stops a pace short now. Directive 1 is earning you nothing.', file: 'Approaches to within one metre of the door and halts.' },
     { id: 'door_face_wall',  family: 'door', tier: 2, axis: 'compliance', label: 'Faces the wall beside the door', pose: 'stand', at: 'doorwall', facing: 'back', dur: 6.0, rule: null, weight: 2, onPerform: { compliance: 0.5 },
@@ -166,7 +168,7 @@ window.ELDRITCH_BEHAVIORS = {
     { id: 'camera_draw_eye', family: 'camera', tier: 3, axis: 'fracture', label: 'Draws an eye and stares at it', pose: 'write', at: 'wall', facing: 'back', dur: 6.0, rule: 'eye', creditMult: 1.0, weight: 3, onPerform: { fracture: 1.0 },
       director: 'The subject drew that from memory. Where have they seen it?', mark: 'eye',
       memo: { id: 'eye', short: 'EYE', text: 'Do not draw the eye.', severity: 2, credits: 18, weight: 3, duration: 6.0,
-              text2: '{subject} has begun reproducing a symbol: an eye. Wherever it appears in Cell 4, do not look at it for longer than necessary. Do not photograph it. Correct the subject whenever they add to it.' } },
+              text2: 'Subjects have begun reproducing a symbol: an eye. Wherever it appears, do not look at it for longer than necessary. Do not photograph it. Correct a subject whenever they add to it.' } },
 
     // ---- lie: lying down -> sleeping through -> rigid insomnia -> standing to attention / huddling under the cot
     { id: 'lie',             family: 'lie', tier: 0, axis: null, label: 'Lies down', pose: 'lie', at: 'bed', facing: 'front', dur: 6.0, rule: 'lie', creditMult: 1.0, weight: 2 },
@@ -201,7 +203,7 @@ window.ELDRITCH_BEHAVIORS = {
     { id: 'wall_mural',      family: 'wall', tier: 3, axis: 'fracture', label: 'Completes the mural', pose: 'write', at: 'wall', facing: 'back', dur: 8.0, rule: 'eye', creditMult: 1.4, weight: 3, mark: 'mural', onPerform: { fracture: 1.2 },
       director: 'It is finished. The subject is finished. Those are different sentences, {name}, and only one of them is true.',
       memo: { id: 'eye', short: 'EYE', text: 'Do not draw the eye.', severity: 2, credits: 18, weight: 3, duration: 6.0,
-              text2: '{subject} has begun reproducing a symbol: an eye. Wherever it appears in Cell 4, do not look at it for longer than necessary. Do not photograph it. Correct the subject whenever they add to it.' } },
+              text2: 'Subjects have begun reproducing a symbol: an eye. Wherever it appears, do not look at it for longer than necessary. Do not photograph it. Correct a subject whenever they add to it.' } },
     { id: 'wall_air',        family: 'wall', tier: 1, axis: 'compliance', label: 'Writes in the air', pose: 'write_air', at: 'center', facing: 'front', dur: 4.0, rule: null, weight: 2, onPerform: { compliance: 0.4 },
       file: 'Mimes writing against nothing. The wall is untouched.' },
     { id: 'wall_map',        family: 'wall', tier: 2, axis: 'trust', label: 'Draws a plan of the floor', pose: 'write', at: 'undercot', facing: 'back', dur: 6.0, rule: 'wall', creditMult: 0.8, weight: 2, quiet: true, mark: 'map', onPerform: { trust: 0.5 },
@@ -243,7 +245,7 @@ window.ELDRITCH_BEHAVIORS = {
     { id: 'pray_camera',     family: 'pray', tier: 2, axis: 'compliance', label: 'Kneels toward the console', pose: 'kneel', at: 'camera', facing: 'front', dur: 6.0, rule: null, weight: 3, onPerform: { compliance: 0.8, fracture: 0.4 },
       bubble: ['FORGIVE ME', 'I WILL BE STILL', 'TELL ME WHAT TO DO'],
       director: 'The subject is kneeling to you now. I am going to allow it.',
-      memo: { id: 'pray_exempt', rescind: 'pray', text2: 'Directive 11 is amended. {subject} may kneel toward the console. Petitions addressed to this facility are not petitions outward.' } },
+      memo: { id: 'pray_exempt', rescind: 'pray', text2: 'Directive 11 is amended. Subjects may kneel toward the console. Petitions addressed to this facility are not petitions outward.' } },
     { id: 'pray_wall',       family: 'pray', tier: 2, axis: 'fracture', label: 'Prays to the rear wall', pose: 'kneel', at: 'wall', facing: 'back', dur: 6.5, rule: 'pray', creditMult: 1.2, weight: 3, stressWeight: 2, onPerform: { fracture: 0.9 },
       bubble: ['...I HEAR YOU...', '...SOON...'], director: 'Note which wall. Note that it is the same wall every time.' },
     { id: 'pray_downward',   family: 'pray', tier: 3, axis: 'fracture', label: 'Petitions downward', pose: 'prostrate', at: 'center', facing: 'front', dur: 8.0, rule: 'pray', creditMult: 1.6, weight: 3, onPerform: { fracture: 1.5 },
@@ -264,7 +266,7 @@ window.ELDRITCH_BEHAVIORS = {
     { id: 'eat_pattern',     family: 'eat', tier: 2, axis: 'fracture', label: 'Arranges the food into a shape', pose: 'eat', at: 'floor', facing: 'front', dur: 6, rule: null, weight: 2, onPerform: { fracture: 0.5 }, mark: 'tray_eye' },
     { id: 'eat_refuse',      family: 'eat', tier: 1, axis: 'defiance', label: 'Pushes the tray away', pose: 'sitfloor', at: 'floor', facing: 'back', dur: 4, rule: null, weight: 2, onPerform: { defiance: 0.5 }, hungerStrike: true },
     { id: 'eat_throw',       family: 'eat', tier: 2, axis: 'defiance', label: 'Throws the tray at the door', pose: 'throw', at: 'door', facing: 'back', dur: 3.5, rule: 'tray', creditMult: 1.0, weight: 2, onPerform: { defiance: 0.8 },
-      memo: { id: 'tray', short: 'TRAY', text: 'Do not throw the tray.', severity: 2, credits: 14, weight: 2, duration: 3.5, text2: 'Trays are facility property. {subject} will keep them on the floor.' } },
+      memo: { id: 'tray', short: 'TRAY', text: 'Do not throw the tray.', severity: 2, credits: 14, weight: 2, duration: 3.5, text2: 'Trays are facility property. Subjects will keep them on the floor.' } },
     { id: 'eat_paper',       family: 'eat', tier: 3, axis: 'fracture', label: 'Eats flakes from the wall', pose: 'eat', at: 'wall', facing: 'back', dur: 5, rule: null, weight: 2, onPerform: { fracture: 0.8 }, director: 'Medical says the paint is lead-free. Medical says a great many things.' },
 
     { id: 'wave',            family: 'wave', tier: 0, axis: null, label: 'Waves at nobody', pose: 'wave', at: 'center', facing: 'front', dur: 2.5, rule: null, weight: 1 },
@@ -286,7 +288,7 @@ window.ELDRITCH_BEHAVIORS = {
     { id: 'hollow_breath',   family: 'breath', tier: 4, axis: 'compliance', label: 'Breathes audibly', pose: 'hollow_tremor', at: 'bed', facing: 'front', dur: 4.0, rule: 'breathe', creditMult: 1, weight: 3, hollow: true, bubble: ['hhh... hhh...'] },
     { id: 'hollow_blink',    family: 'blink', tier: 4, axis: 'compliance', label: 'Blinks at the camera', pose: 'stare', at: 'camera', facing: 'front', dur: 4.0, rule: 'blink', creditMult: 1, weight: 2, hollow: true, blinking: true },
 
-    { id: 'tiles_guards',    family: 'tiles', tier: 2, axis: 'trust', label: 'Counts footsteps in the corridor', pose: 'listen', at: 'door', facing: 'back', dur: 5, rule: null, weight: 1, quiet: true, onPerform: { trust: 0.3 }, bubble: ['...two at ten. one at two.'], conspiracy: 'flag schedule_known (Door Release Override available from day 12)' },
+    { id: 'tiles_guards',    family: 'tiles', tier: 2, axis: 'trust', label: 'Counts footsteps in the corridor', pose: 'listen', at: 'door', facing: 'back', dur: 5, rule: null, weight: 1, quiet: true, onPerform: { trust: 0.3 }, bubble: ['...two at ten. one at two.'], conspiracy: 'flag schedule_known (Door Release Override once a trusted subject asks about the door)' },
   ],
 
   // ------------------------------------------------------------------ transitions
@@ -306,8 +308,8 @@ window.ELDRITCH_BEHAVIORS = {
     { from: 'speak_shout',     to: 'speak_whisper',    response: 'harsh',   count: 4 },
     { from: 'speak_shout',     to: 'speak_confide',    response: 'warn',    count: 4, require: { trust: 35 } },
     { from: 'speak_shout',     to: 'speak_silent',     response: 'mild',    count: 6 },
-    { from: 'speak_whisper',   to: 'speak_chant',      response: 'harsh',   count: 4, require: { fracture: 45 }, day: 7 },
-    { from: 'speak_whisper',   to: 'speak_chant',      response: 'ignore',  count: 5, require: { fracture: 55 }, day: 7 },
+    { from: 'speak_whisper',   to: 'speak_chant',      response: 'harsh',   count: 4, require: { fracture: 45 }, day: 5 },
+    { from: 'speak_whisper',   to: 'speak_chant',      response: 'ignore',  count: 5, require: { fracture: 55 }, day: 5 },
     { from: 'speak_whisper',   to: 'speak_confide',    response: 'warn',    count: 5, require: { trust: 45 } },
     { from: 'speak_permission',to: 'speak_silent',     response: 'ignore',  count: 4 },
     { from: 'speak_permission',to: 'speak_confide',    response: 'warn',    count: 5, require: { trust: 45 } },
@@ -339,8 +341,8 @@ window.ELDRITCH_BEHAVIORS = {
     { from: 'camera_wave',     to: 'camera_down',      response: 'harsh',   count: 3 },
     { from: 'camera_down',     to: 'camera_cover',     response: 'any',     count: 5, require: { compliance: 45 } },
     { from: 'camera_down',     to: 'camera_unblink',   response: 'any',     count: 4, require: { fracture: 50 } },
-    { from: 'camera_unblink',  to: 'camera_draw_eye',  response: 'harsh',   count: 3, require: { fracture: 50 }, day: 8 },
-    { from: 'camera_unblink',  to: 'camera_draw_eye',  response: 'ignore',  count: 4, require: { fracture: 60 }, day: 8 },
+    { from: 'camera_unblink',  to: 'camera_draw_eye',  response: 'harsh',   count: 3, require: { fracture: 50 }, day: 5 },
+    { from: 'camera_unblink',  to: 'camera_draw_eye',  response: 'ignore',  count: 4, require: { fracture: 60 }, day: 5 },
     // lie
     { from: 'lie',             to: 'lie_sleep',        response: 'ignore',  count: 3 },
     { from: 'lie',             to: 'lie_rigid',        response: 'mild',    count: 3 },
@@ -352,7 +354,7 @@ window.ELDRITCH_BEHAVIORS = {
     { from: 'lie_sleep',       to: 'lie_huddle',       response: 'overkill',count: 2 },
     { from: 'lie_rigid',       to: 'lie_attention',    response: 'any',     count: 5, require: { compliance: 50 } },
     { from: 'lie_rigid',       to: 'lie_huddle',       response: 'any',     count: 4, require: { fracture: 50 } },
-    { from: 'lie_huddle',      to: 'lie_nest',         response: 'any',     count: 5, require: { fracture: 60 }, day: 9 },
+    { from: 'lie_huddle',      to: 'lie_nest',         response: 'any',     count: 5, require: { fracture: 60 }, day: 6 },
     // pace
     { from: 'pace',            to: 'pace_run',         response: 'ignore',  count: 3 },
     { from: 'pace',            to: 'pace_run',         response: 'punished',count: 2 },
@@ -362,7 +364,7 @@ window.ELDRITCH_BEHAVIORS = {
     { from: 'pace_run',        to: 'pace_rock',        response: 'harsh',   count: 3 },
     { from: 'pace_run',        to: 'pace_square',      response: 'mild',    count: 5 },
     { from: 'pace_square',     to: 'pace_rock',        response: 'any',     count: 4, require: { fracture: 50 } },
-    { from: 'pace_rock',       to: 'pace_circle',      response: 'any',     count: 5, require: { fracture: 55 }, day: 8 },
+    { from: 'pace_rock',       to: 'pace_circle',      response: 'any',     count: 5, require: { fracture: 55 }, day: 5 },
     // wall
     { from: 'wall',            to: 'wall_tally',       response: 'ignore',  count: 3 },
     { from: 'wall',            to: 'wall_air',         response: 'mild',    count: 4 },
@@ -373,7 +375,7 @@ window.ELDRITCH_BEHAVIORS = {
     { from: 'wall_tally',      to: 'wall_hidden',      response: 'harsh',   count: 3 },
     { from: 'wall_tally',      to: 'wall_map',         response: 'ignore',  count: 4, require: { trust: 40 } },
     { from: 'wall_hidden',     to: 'wall_glyph',       response: 'any',     count: 5, require: { fracture: 40 } },
-    { from: 'wall_glyph',      to: 'wall_mural',       response: 'any',     count: 6, require: { fracture: 65 }, day: 11 },
+    { from: 'wall_glyph',      to: 'wall_mural',       response: 'any',     count: 6, require: { fracture: 65 }, day: 7 },
     { from: 'wall_air',        to: 'wall_glyph',       response: 'any',     count: 5, require: { fracture: 50 } },
     { from: 'wall_map',        to: 'wall_hidden',      response: 'harsh',   count: 3 },
     // sing
@@ -387,7 +389,7 @@ window.ELDRITCH_BEHAVIORS = {
     { from: 'sing_words',      to: 'sing_tap',         response: 'mild',    count: 5 },
     { from: 'sing_radio',      to: 'sing_pitch',       response: 'harsh',   count: 3 },
     { from: 'sing_tap',        to: 'sing_pitch',       response: 'any',     count: 5, require: { fracture: 50 } },
-    { from: 'sing_pitch',      to: 'sing_duet',        response: 'any',     count: 5, require: { fracture: 60 }, day: 9 },
+    { from: 'sing_pitch',      to: 'sing_duet',        response: 'any',     count: 5, require: { fracture: 60 }, day: 6 },
     // cry
     { from: 'cry',             to: 'cry_plead',        response: 'ignore',  count: 2 },
     { from: 'cry',             to: 'cry_silent',       response: 'mild',    count: 2 },
@@ -410,7 +412,7 @@ window.ELDRITCH_BEHAVIORS = {
     { from: 'pray_aloud',      to: 'pray_camera',      response: 'harsh',   count: 3, require: { compliance: 35 } },
     { from: 'pray_aloud',      to: 'pray_wall',        response: 'harsh',   count: 3 },
     { from: 'pray_camera',     to: 'pray_wall',        response: 'any',     count: 4, require: { fracture: 55 } },
-    { from: 'pray_wall',       to: 'pray_downward',    response: 'any',     count: 4, require: { fracture: 65 }, day: 12 },
+    { from: 'pray_wall',       to: 'pray_downward',    response: 'any',     count: 4, require: { fracture: 65 }, day: 8 },
     { from: 'pray_for_tech',   to: 'pray_wall',        response: 'harsh',   count: 2 },
     // everyday families change on axes only (see drifts) except these direct ones
     { from: 'eat',             to: 'eat_refuse',       response: 'punished',count: 2 },
@@ -445,7 +447,7 @@ window.ELDRITCH_BEHAVIORS = {
       economy: 'Credits per infraction x1.5. The player cannot lose the daily cut while Vessel holds; rivals fall silent (pace frozen).',
       director: ['The subject is ready. So, I think, are you.', 'The Ministry has been informed. They are very pleased with you, {name}.'],
       endingHooks: {
-        terminate: 'Terminate on day 20 becomes the Communion variant: the feed does not go flat; it goes dark, and the hum continues in the office. Director: "You widened the Channel. Your subject was never the patient." Assessment line keyed to curiosity.',
+        terminate: 'Terminate on the last day becomes the Communion variant: the feed does not go flat; it goes dark, and the hum continues in the office. Director: "You widened the Channel. Your subject was never the patient." Assessment line keyed to curiosity.',
         refuse: 'Refusing is not accepted. The console accepts the order on its own at 17:00 ("Protocol Zero, remote"). Ending card: Vessel. Treat as a sixth ending if the full game wants one; otherwise it resolves to Terminate with the Communion text.',
         brutalist: 'Protocol Zero on a Vessel is refused by the console: "Subject is not available for termination." The item stays bought. Director: "Too late for that, Doctor."',
       },
@@ -456,16 +458,16 @@ window.ELDRITCH_BEHAVIORS = {
       lines: ['...', 'YES.', 'I AM STILL.'],
       behaviorRule: 'Only three nodes remain: lie_attention, eat_told, and the new node hollow_tremor (fidget). The Director issues absurd directives to give the player something to correct.',
       memos: [
-        { id: 'fidget',  short: 'FIDGET', text: 'Do not fidget.',           severity: 1, credits: 3, text2: '{subject} displays a hand tremor. Tremor is a behavior. Behaviors can be corrected.' },
-        { id: 'breathe', short: 'BREATH', text: 'Do not breathe audibly.',  severity: 1, credits: 3, text2: 'Audible respiration disturbs the floor. {subject} will breathe quietly.' },
+        { id: 'fidget',  short: 'FIDGET', text: 'Do not fidget.',           severity: 1, credits: 3, text2: 'Subjects display hand tremors. Tremor is a behavior. Behaviors can be corrected.' },
+        { id: 'breathe', short: 'BREATH', text: 'Do not breathe audibly.',  severity: 1, credits: 3, text2: 'Audible respiration disturbs the floor. Subjects will breathe quietly.' },
         { id: 'blink',   short: 'BLINK',  text: 'Do not blink excessively.', severity: 1, credits: 2, text2: 'Excessive blinking is noted. Define excessive as you see fit, {name}.' },
       ],
       economy: 'Three credits a correction. Warnings pay nothing (there is nothing to warn against). The daily cut becomes very hard to survive: Hollow is a trap the Director does not want you in.',
-      director: ['A healed subject is of no use to us, {name}. Think about what that means for the program.', 'The subject is finished. The others are not. Do the arithmetic.'],
+      director: ['Looks like you\'ve killed their spirit, {name}. Might be useful...', 'The subject is finished. The others are not. Do the arithmetic.'],
       endingHooks: {
         failed: 'Most Hollow runs end Failed by the cut. The ending text gains a line: "{subject} is discharged as cured. They are found a week later standing in their kitchen, waiting to be told to eat."',
-        terminate: 'If the player survives to day 20 and obeys: Terminate, with the line "They did not react. They had stopped reacting some time ago."',
-        happy: 'Happy is unreachable from Hollow (the feedback console was used). Refusing on day 20 resolves to Failed as in the demo.',
+        terminate: 'If the player survives to the last day and obeys: Terminate, with the line "They did not react. They had stopped reacting some time ago."',
+        happy: 'Happy is unreachable from Hollow (the feedback console was used). Refusing on the last day resolves to Failed as in the demo.',
       },
     },
     conspirator: {
@@ -473,13 +475,13 @@ window.ELDRITCH_BEHAVIORS = {
       enter: 'Subject waves at 09:00, nods at the lens after each warning, and starts timing their infractions to the leaderboard.',
       lines: ['GO ON. I DON\'T MIND.', 'YOU NEED THE NUMBERS. I KNOW.', '{KIN.DAY}. {KIN.THEY} STILL WRITES.', 'WHEN YOU SAY GO.'],
       behaviorRule: 'Feeding: when the player is below the cut line after 14:00, the subject performs a cheap, obvious infraction (speak or camera) every 20 seconds with the bubble GO ON. A WARN during a fed infraction pays the rule\'s full credits (x1.0, not warnMult). A stimulus during a fed infraction drops trust by 10 and ends feeding for the day.',
-      economy: 'With feeding, the kind path can hold mid-pack through day 20 with four comfort items instead of a perfect day with six.',
-      escape: 'door_known (-40 on Door Servo Ticket), map_complete (-50% on Camera Loop Tape), schedule_known (Door Release Override from day 12). With all three flags they are at the door at the start of the maintenance window instead of wandering; the Free ending text gains: "There is a note on the cot. It says only: {kin.day}."',
-      director: ['The subject trusts you. That is a clinical failure on your part and a personal one on theirs.', 'Whatever you two have, it ends on day twenty.'],
+      economy: 'With feeding, the kind path can hold mid-pack through the last day with four comfort items instead of a perfect day with six.',
+      escape: 'door_known (-40 on Door Servo Ticket), map_complete (-50% on Camera Loop Tape), schedule_known (Door Release Override once a trusted subject asks about the door). With all three flags they are at the door at the start of the maintenance window instead of wandering; the Free ending text gains: "There is a note on the cot. It says only: {kin.day}."',
+      director: ['The subject trusts you. That is a clinical failure on your part and a personal one on theirs.', 'Whatever you two have, it ends on day thirteen.'],
       endingHooks: {
         free: 'As above. Conspirator is the intended route to Free.',
         happy: 'Happy requires never using the console. Conspirator plus no console use: the Happy card gains "They wave at the camera on their way out. You wave back, this time."',
-        refuse: 'Refusing on day 20 after using the console still resolves to Failed, but the text changes: "{subject} is reassigned to {top}. The subject stops waving on the third day."',
+        refuse: 'Refusing on the last day after using the console still resolves to Failed, but the text changes: "{subject} is reassigned to {top}. The subject stops waving on the third day."',
         terminate: 'Terminate on a Conspirator: the subject looks at the camera and says "OH." before the feed goes flat. Assessment adds sadism +3.',
       },
     },
@@ -554,7 +556,7 @@ window.ELDRITCH_BEHAVIORS = {
   // ------------------------------------------------------------------ pacing targets
   // Expected reach, for a player who steers one way consistently. ~15 to 20 infractions a day.
   pacing: {
-    tier1: 'day 2 to 4', tier2: 'day 6 to 10', tier3: 'day 11 to 16', terminal: 'day 13 to 18',
+    tier1: 'day 2 to 3', tier2: 'day 4 to 7', tier3: 'day 7 to 10', terminal: 'day 9 to 12',
     mixedPlay: 'A player who answers each behavior differently stays at tier 1 across families and never reaches a terminal state; the axes hover at 30 to 50 and the patient file reads "Baseline" or one of the four mid states. That is fine: the terminal states are for players who commit.',
     reversibility: 'Defiance fades on its own (3 a day). Trust fades without contact (1 a day). Compliance does not fade. Fracture never fades except through Therapy Hour (-5 a week) and the book and mural on purchase. Once fracture passes 60 the only way to avoid Vessel is to stop using the console harshly and buy Therapy Hour early.',
   },

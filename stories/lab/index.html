@@ -164,7 +164,15 @@ button { font: inherit; }
 .modal {
   position: absolute; inset: 5% 10%; overflow: auto; box-shadow: 6px 6px 0 #000;
   padding: 2.4cqw 3cqw; font-size: clamp(17px, 2.1cqw, 26px); line-height: 1.1;
+  scrollbar-width: thin; scrollbar-color: #7a6d52 #cbbf9d;
 }
+/* The page scroll: a squared paper-toned track and an ink thumb, green on the terminal. */
+.modal::-webkit-scrollbar { width: 14px; }
+.modal::-webkit-scrollbar-track { background: #cbbf9d; border-left: 3px solid #b2a78b; }
+.modal::-webkit-scrollbar-thumb { background: #7a6d52; border: 3px solid #cbbf9d; box-shadow: inset 2px 2px 0 #9a8c6c; }
+.modal.terminal { scrollbar-color: #2a6a50 #0b1f17; }
+.modal.terminal::-webkit-scrollbar-track { background: #0b1f17; border-left: 3px solid #1d4a38; }
+.modal.terminal::-webkit-scrollbar-thumb { background: #2a6a50; border: 3px solid #0b1f17; box-shadow: inset 2px 2px 0 #62bb8d; }
 .modal.paper { background: var(--paper); color: var(--paper-ink); border: 3px solid #b2a78b; }
 .modal.terminal { background: var(--crt-bg); color: var(--crt); border: 3px solid #2a6a50; }
 .modal.dark { background: rgba(8, 6, 12, 0.97); color: var(--ink); inset: 0; display: grid; place-items: center; box-shadow: none; }
@@ -196,6 +204,7 @@ button { font: inherit; }
 .shop span { opacity: 0.8; font-size: 0.9em; }
 .shop em { font-style: normal; font-variant-numeric: tabular-nums; color: var(--amber); white-space: nowrap; }
 .shop .locked { opacity: 0.55; }
+#r-shop, #r-next { min-width: 10.5em; }
 .modal.terminal .btn { background: #62bb8d; color: #071712; box-shadow: 0 3px 0 #2a6a50, 3px 3px 0 3px #000; }
 .modal.terminal .btn:disabled { background: #123629; color: #62bb8d; box-shadow: none; }
 .modal.terminal .btn.ghost { background: transparent; color: #62bb8d; }
@@ -260,6 +269,8 @@ button { font: inherit; }
 .board tr.me td { color: var(--red); }
 .board tr.me td:nth-child(2)::after { content: " (you)"; opacity: 0.7; }
 .board tr.cutrow td { border-top: 3px solid var(--red); }
+.board.served td:first-child { width: auto; }
+.board.served small { opacity: 0.7; }
 .board .cut { font-family: var(--display); font-size: 0.5em; color: var(--paper); background: var(--red); padding: 0.15em 0.4em; vertical-align: middle; }
 .news { border-left: 4px solid var(--paper-ink); padding-left: 0.6em; }
 .ending-title { font-size: clamp(20px, 4.4cqw, 52px) !important; letter-spacing: 0.12em; color: var(--red); }

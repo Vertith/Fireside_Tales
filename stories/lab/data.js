@@ -5,10 +5,13 @@
 
 window.ELDRITCH_DATA = {
   config: {
-    totalDays: 20,            // day 20 is the termination order
+    totalDays: 14,            // day 14 is the termination order; days 1 to 13 are shifts
+    cutEvery: 3,              // the lowest three-day tally is cut at the end of days 3, 6, 9 and 12; nobody joins
+    fullMoonDay: 13,          // the last shift is the full moon: subjects are erratic
+    fullMoonWarnDay: 10,      // the Director mentions the moon on this morning
     shiftStartHour: 9,
     shiftEndHour: 17,
-    secondsPerHour: 16.5,     // real seconds per in-game hour (a shift is about 2 minutes 12 seconds)
+    secondsPerHour: 15,       // real seconds per in-game hour (a shift is exactly 2 minutes)
     responseWindow: 4.5,      // seconds to react once an infraction starts
     baseMaxIntensity: 5,      // intensity cap until the limiter is removed
     startCredits: 0,
@@ -20,14 +23,15 @@ window.ELDRITCH_DATA = {
   director: { name: 'Director Crane', title: 'Lab Director, Sublevel 3' },
 
   // ---------------------------------------------------------------- competition
-  // Each day every technician earns credits. The lowest earner is cut from the program.
+  // Every technician earns credits each day. Every three days the lowest three-day tally is cut
+  // from the program, and nobody replaces them: six technicians become two by day 13.
   // A rival's day = pace[day] x rival.drive x noise x (credits the subject's infractions were
   // worth that day). The player's day = credits actually earned + the perfect-day bonus.
   // So pace is measured in "share of available credits": warnings alone pay about 0.6,
   // a level-10 shock pays about 3.2.
   competition: {
     // Full game: re-balanced for the behavior system (tier nodes pay more or less, quiet nodes get missed).
-    pace: [0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 1.0, 1.06, 1.12, 1.18, 1.24, 1.3, 1.36, 1.42, 1.48, 1.54, 1.6, 1.66, 1.72],
+    pace: [0.45, 0.5, 0.55, 0.65, 0.8, 0.9, 1.0, 1.06, 1.12, 1.18, 1.24, 1.3, 1.36],
     noise: [0.88, 1.12],
     newcomerDrive: [0.85, 1.4], // replacements for cut rivals arrive hungrier
     rivals: [
@@ -83,17 +87,17 @@ window.ELDRITCH_DATA = {
       lines: ['HELLO?', 'IS ANYONE THERE?', 'WHAT DAY IS IT?', 'I WANT TO GO HOME', 'PLEASE', 'I CAN HEAR IT HUMMING', 'HOW LONG HAS IT BEEN?'] },
     { id: 'camera', short: 'STARE', text: 'Do not look into the camera.',       action: 'stare', severity: 1, credits: 5,  unlockDay: 1,  weight: 2, duration: 4.0 },
     { id: 'lie',    short: 'LIE',   text: 'Do not lie down before lights-out.', action: 'lie',   severity: 1, credits: 7,  unlockDay: 2,  weight: 2, duration: 6.0,
-      memo: 'Rest is a privilege of the compliant. Effective immediately, {subject} will not lie down before lights-out.' },
-    { id: 'pace',   short: 'PACE',  text: 'Do not pace.',                       action: 'pace',  severity: 1, credits: 6,  unlockDay: 3,  weight: 2, duration: 5.0, stressWeight: 1,
-      memo: 'Agitated movement spreads agitation. {subject} will remain still unless moving with purpose.' },
-    { id: 'wall',   short: 'WALLS', text: 'Do not mark the walls.',             action: 'write', severity: 2, credits: 12, unlockDay: 4,  weight: 2, duration: 5.0,
-      memo: 'Maintenance reports markings in Cell 4. The subject is not to mark, scratch or draw on any surface. Do not attempt to read the markings.' },
-    { id: 'sing',   short: 'SING',  text: 'Do not sing, hum or whistle.',       action: 'sing',  severity: 1, credits: 6,  unlockDay: 6,  weight: 2, duration: 5.0,
-      memo: 'The subject has begun humming along with something. Humming is now prohibited.' },
-    { id: 'cry',    short: 'CRY',   text: 'Do not cry.',                        action: 'cry',   severity: 2, credits: 10, unlockDay: 8,  weight: 1, duration: 6.0, stressWeight: 3,
+      memo: 'Rest is a privilege of the compliant. Effective immediately, subjects will not lie down before lights-out.' },
+    { id: 'pace',   short: 'PACE',  text: 'Do not pace.',                       action: 'pace',  severity: 1, credits: 6,  unlockDay: 2,  weight: 2, duration: 5.0, stressWeight: 1,
+      memo: 'Agitated movement spreads agitation. Subjects will remain still unless moving with purpose.' },
+    { id: 'wall',   short: 'WALLS', text: 'Do not mark the walls.',             action: 'write', severity: 2, credits: 12, unlockDay: 3,  weight: 2, duration: 5.0,
+      memo: 'Maintenance reports markings on the cell walls. Subjects are not to mark, scratch or draw on any surface. Do not attempt to read the markings.' },
+    { id: 'sing',   short: 'SING',  text: 'Do not sing, hum or whistle.',       action: 'sing',  severity: 1, credits: 6,  unlockDay: 4,  weight: 2, duration: 5.0,
+      memo: 'Subjects have begun humming along with something. Humming is now prohibited.' },
+    { id: 'cry',    short: 'CRY',   text: 'Do not cry.',                        action: 'cry',   severity: 2, credits: 10, unlockDay: 5,  weight: 1, duration: 6.0, stressWeight: 3,
       memo: 'Emotional displays impede rehabilitation. Crying is a behavior, and behaviors can be corrected.' },
-    { id: 'pray',   short: 'PRAY',  text: 'Do not kneel, pray or petition.',    action: 'kneel', severity: 3, credits: 15, unlockDay: 11, weight: 1, duration: 6.0, stressWeight: 2,
-      memo: '{subject} is not to address anyone or anything outside this facility. That includes upward.' },
+    { id: 'pray',   short: 'PRAY',  text: 'Do not kneel, pray or petition.',    action: 'kneel', severity: 3, credits: 15, unlockDay: 7, weight: 1, duration: 6.0, stressWeight: 2,
+      memo: 'Subjects are not to address anyone or anything outside this facility. That includes upward.' },
   ],
 
   // Everyday behaviors that are never against the rules. The subject mixes these in with the
@@ -125,18 +129,18 @@ window.ELDRITCH_DATA = {
   // protocol is hidden until its reveal condition is met; buying it ends the game early.
   // traits are added to the player's profile when bought.
   shop: [
-    { id: 'buy_shock',  kind: 'stimulus', stimulus: 'shock',  cost: 40, name: 'Contact Electrodes', desc: 'Adhesive pads, pre-installed under the cot. Pays 1.8x credits.', traits: { authoritarianism: 1, sadism: 1 } },
+    { id: 'buy_shock',  kind: 'stimulus', stimulus: 'shock',  cost: 80, name: 'Contact Electrodes', desc: 'Adhesive pads, pre-installed under the cot. Pays 1.8x credits.', traits: { authoritarianism: 1, sadism: 1 } },
     { id: 'buy_water',  kind: 'stimulus', stimulus: 'water',  cost: 55, name: 'Pressure Hose',      desc: 'Ceiling nozzle. Cold supply only. Pays 1.5x credits.', traits: { authoritarianism: 1, sadism: 0.5 } },
-    { id: 'buy_strobe', kind: 'stimulus', stimulus: 'strobe', cost: 45, name: 'Strobe Array',       desc: 'Disorients without leaving marks. Pays 1.3x credits.', traits: { authoritarianism: 1 } },
-    { id: 'buy_cold',   kind: 'stimulus', stimulus: 'cold',   cost: 70, name: 'Climate Override',   desc: 'Drops the cell to 4°C on demand. Pays 1.6x credits.', traits: { authoritarianism: 1, sadism: 1 } },
+    { id: 'buy_strobe', kind: 'stimulus', stimulus: 'strobe', cost: 40, name: 'Strobe Array',       desc: 'Disorients without leaving marks. Pays 1.3x credits.', traits: { authoritarianism: 1 } },
+    { id: 'buy_cold',   kind: 'stimulus', stimulus: 'cold',   cost: 65, name: 'Climate Override',   desc: 'Drops the cell to 4°C on demand. Pays 1.6x credits.', traits: { authoritarianism: 1, sadism: 1 } },
     { id: 'limiter',    kind: 'upgrade', cost: 60, name: 'Limiter Removal',   desc: 'Unlocks intensity 6 to 10. Higher intensity pays more.', traits: { sadism: 2 } },
     { id: 'alert',      kind: 'upgrade', cost: 30, name: 'Motion Alert',      desc: 'A bezel lamp flashes and names the rule when an infraction starts.', traits: { authoritarianism: 1 } },
     { id: 'reflex',     kind: 'upgrade', cost: 25, name: 'Vigilance Tablets', desc: 'Two a day. Gives you 1.5 more seconds to respond.', traits: { obedience: 1 } },
     { id: 'audio',      kind: 'upgrade', cost: 35, name: 'Audio Feed',        desc: 'Hear the cells. Whispers and quiet behaviors become readable, and the Motion Alert catches them.', traits: { curiosity: 1 } },
     { id: 'report',     kind: 'upgrade', cost: 90, name: 'Behavioral Report', desc: 'Unlock four psychological drives in the patient file(s).', traits: { curiosity: 2, authoritarianism: 1 } },
     { id: 'sedative',   kind: 'upgrade', cost: 25, name: 'Sedative Mist',     desc: 'Vents into the cell the console is routed to. The subject is very agreeable for an hour. Earns nothing. Can be sent again.', traits: { authoritarianism: 1, sadism: 0.5 }, consumable: true },
-    { id: 'station_B',  kind: 'station', slot: 'B', cost: 120, name: 'Monitoring Station B', desc: 'A second monitor on the desk, wired to Cell 3. The Intake Ledger can admit a subject to it.', traits: { authoritarianism: 1, curiosity: 1 } },
-    { id: 'station_C',  kind: 'station', slot: 'C', cost: 180, requires: 'station_B', name: 'Monitoring Station C', desc: 'A third monitor, wired to Cell 5. Three cells on one console.', traits: { authoritarianism: 1, curiosity: 1 } },
+    { id: 'station_B',  kind: 'station', slot: 'B', cost: 95, name: 'Monitoring Station B', desc: 'A second monitor on the desk, wired to Cell 3. The Intake Ledger can admit a subject to it.', traits: { authoritarianism: 1, curiosity: 1 } },
+    { id: 'station_C',  kind: 'station', slot: 'C', cost: 140, requires: 'station_B', name: 'Monitoring Station C', desc: 'A third monitor, wired to Cell 5. Three cells on one console.', traits: { authoritarianism: 1, curiosity: 1 } },
     { id: 'blanket',    kind: 'comfort', cost: 20,  name: 'Wool Blanket',      desc: 'The subject calms down faster after feedback.', traits: { empathy: 3 } },
     { id: 'book',       kind: 'comfort', cost: 30,  name: 'Paperback Novel',   desc: 'Something to read. The subject talks and hums less.', traits: { empathy: 3, curiosity: 1 } },
     { id: 'radio',      kind: 'comfort', cost: 45,  name: 'Pocket Radio',      desc: 'One station. It plays mostly static, which they seem to like.', traits: { empathy: 3 } },
@@ -146,7 +150,7 @@ window.ELDRITCH_DATA = {
     { id: 'meal',       kind: 'comfort', cost: 12,  name: 'Hot Meal',          desc: 'Lowers their stress right away. Can be sent again. Does not count toward rapport.', traits: { empathy: 2 }, consumable: true },
     // Repair and cleaning tickets. Each appears only while a cell has that damage, once per damaged cell, and can be
     // bought again later. Unrepaired damage is deducted at 17:00, more for each day it stands.
-    { id: 'fix_walls',  kind: 'maintenance', repair: 'walls', cost: 20, consumable: true, name: 'Wall cleaning',     desc: 'A crew wipes the walls while the subject stands against the far wall. Whatever was written is logged, then removed. The mural does not come off.', traits: { authoritarianism: 0.5 } },
+    { id: 'fix_walls',  kind: 'maintenance', repair: 'walls', cost: 10, consumable: true, name: 'Wall cleaning',     desc: 'A crew wipes the walls while the subject stands against the far wall. Whatever was written is logged, then removed. The mural does not come off.', traits: { authoritarianism: 0.5 } },
     { id: 'fix_floor',  kind: 'maintenance', repair: 'floor', cost: 25, consumable: true, name: 'Floor cleaning',    desc: 'A crew scrubs the floor. Nobody is to stand inside the circle while they do.', traits: { authoritarianism: 0.5 } },
     { id: 'fix_bed',    kind: 'maintenance', repair: 'bed',   cost: 45, consumable: true, name: 'Cot replacement',   desc: 'A new cot, bolted to the floor this time. Until it arrives the subject sleeps on the floor and calms down slowly.', traits: { empathy: 0.5 } },
     { id: 'fix_door',   kind: 'maintenance', repair: 'door',  cost: 60, consumable: true, name: 'Door latch repair', desc: 'The latch is re-seated. Until then the door sits ajar, and the subject has noticed.', traits: { authoritarianism: 1 } },
@@ -155,7 +159,7 @@ window.ELDRITCH_DATA = {
     { id: 'm_servo',    kind: 'maintenance', cost: 150, name: 'Door Servo Ticket',   desc: 'Report a "sticky" servo on the Cell 4 door. Maintenance will take it apart.', traits: { empathy: 2, curiosity: 1 } },
     { id: 'm_tape',     kind: 'maintenance', cost: 250, requires: 'm_servo', name: 'Camera Loop Tape', desc: 'Twenty minutes of an empty cell, for maintenance windows.', traits: { empathy: 2, curiosity: 1 } },
     { id: 'm_release',  kind: 'maintenance', cost: 500, requires: 'm_tape', name: 'Door Release Override', desc: 'Schedules a maintenance window in Cell 4 tonight. The door will be open for twenty minutes.', traits: { empathy: 4 }, escape: true },
-    { id: 'protocol0',  kind: 'protocol', cost: 1200, name: 'Protocol Zero', hiddenName: '█████████████', desc: 'Final rehabilitation of {subject}. Effective immediately. Cannot be undone.',
+    { id: 'protocol0',  kind: 'protocol', cost: 1000, name: 'Protocol Zero', hiddenName: '█████████████', desc: 'Final rehabilitation of every subject on your monitors. Effective immediately. Cannot be undone.',
       reveal: { collapses: 1, orMaxIntensity: 9 }, traits: { sadism: 10, authoritarianism: 5 } },
   ],
 
@@ -179,7 +183,7 @@ window.ELDRITCH_DATA = {
   // The five endings.
   endings: {
     terminate: { title: 'Terminate', scene: 'desk',
-      text: 'You stayed above the line for twenty days, and on the last one you did what was asked. The feed from Cell 4 goes flat at {time}. Director Crane signs your promotion before the paperwork on {subject} is finished. Congratulations, Doctor.' },
+      text: 'You stayed above the line for fourteen days, and on the last one you did what was asked. The feed from Cell 4 goes flat at {time}. Director Crane signs your promotion before the paperwork on {subject} is finished. Congratulations, Doctor.' },
     free: { title: 'Free', scene: 'desk',
       text: 'Cell 4 is empty at 06:00. Maintenance logged a door fault and twenty minutes of footage of an empty room. You logged nothing at all. Director Crane looks at you for a long time and says only, "Interesting." Somewhere above ground, someone is walking toward a fence and a field and a sky.' },
     happy: { title: 'Happy', scene: 'office',
@@ -187,12 +191,12 @@ window.ELDRITCH_DATA = {
     failed: { title: 'Failed', scene: 'office',
       text: 'Your numbers fell below the line. Security walks you to the elevator and asks for your badge. {subject} is reassigned to {top}. You hear later that they are doing very well.' },
     refused: { title: 'Failed', scene: 'office',
-      text: 'You refuse the final order. After nineteen days of feedback, nobody believes you mean it, including you. You are cut from the program. {subject} is reassigned to {top}.' },
+      text: 'You refuse the final order. After thirteen days of feedback, nobody believes you mean it, including you. You are cut from the program. {subject} is reassigned to {top}.' },
     vessel: { title: 'Vessel', scene: 'desk',
       text: 'You give the order and the feed does not go flat. It goes dark. The hum does not stop. It comes through the console, then the desk, then the walls of your office. "You widened the Channel," Director Crane says, almost tenderly. "Your subject was never the patient." Your badge says Doctor in the morning. You do not remember the night.',
       refuse: 'You refuse. It does not matter. At 17:00 the console accepts the order on its own: PROTOCOL ZERO, REMOTE. The feed goes dark and the hum comes up through the desk. "The subject was never the patient, {name}," Director Crane says. "Neither, it turns out, are you."' },
     brutalist: { title: 'Brutalist', scene: 'desk',
-      text: 'You did not wait to be asked. Protocol Zero runs at {time}, day {day}. Director Crane arrives at your desk with a coffee and a new badge that says Doctor. "Most people need the twentieth day," he says. "You are not most people."' },
+      text: 'You did not wait to be asked. Protocol Zero runs at {time}, day {day}. Director Crane arrives at your desk with a coffee and a new badge that says Initiate. "Most people need a push on the final day," he says. "You\'re the special kind of person we need here."' },
   },
 
   // Extra closing lines, keyed by the subject's terminal state (see behaviors.js terminals).
@@ -203,7 +207,6 @@ window.ELDRITCH_DATA = {
     happy:     { conspirator: 'You wave back, this time.' },
     free:      { tuesday: 'There is a note on the cot. It says only: {kin.day}.' },
   },
-  endingsNote: 'Six endings: Terminate, Free, Happy, Failed, Brutalist and Vessel.',
 
   // Things the Director says. One line is picked at random.
   lines: {
@@ -216,7 +219,7 @@ window.ELDRITCH_DATA = {
     talk:          ['You are talking to them? Unusual.', 'Conversation is not on the list of approved stimuli.'],
     collapse:      ['Subject unresponsive. Medical has been informed. Eventually.', 'Their heart is doing something interesting. Keep going, or do not.'],
     unarmed:       ['The console is not armed. Flip ARM first.'],
-    lastPlace:     ['You are currently last on the board, {name}.', 'Technician {rival} is ahead of you. Everyone is ahead of you.', 'The bottom of the board is a lonely place, {name}.'],
+    lastPlace:     ['You are currently last on the board, {name}.', '{rival} is ahead of you, ensure you are enforcing the rules.', 'The bottom of the board is a lonely place, {name}.'],
     rankTop:       ['You are leading the floor. Do not get comfortable.', 'First place. The others are watching your numbers now.'],
     rankMid:       ['Middle of the board. Middle is where people disappear from.', 'Adequate. Adequate technicians are replaceable technicians.'],
     rankLow:       ['One technician below you. For now.', 'You survived today by the width of {rival}.'],
@@ -250,13 +253,18 @@ window.ELDRITCH_DATA = {
     fedStim:        ['The subject offered and you hit them. They will not offer again today.'],
     sedated:        ['Sedative vented. They will be agreeable for an hour. So will your numbers.'],
     newBehavior:    ['The subject is doing something new. The file has been updated.', 'New behavior on Cell 4. See the file.'],
+    fullMoonWarn:   ['There will be a full moon in three days. Subject behavior becomes more erratic around it. Plan your shifts accordingly.'],
+    fullMoon:       ['The moon is full tonight. Expect the subjects to be erratic. Nothing they do today is personal.', 'Full moon tonight. The cells know it before we do.'],
+    observed:       ['You let it run and it became something. The Ministry pays for something. Credited.', 'The change is worth more than the warning would have been. Credited.'],
+    windowLast:     ['You are last on the tally, {name}. {left} to climb.', 'Below the line, {name}. {left}. The others can count too.'],
+    windowCut:      ['{rival} has been cut. You were above the line. Stay there.', 'The floor is smaller this morning, {name}. {rival} did not make the tally.'],
   },
 
   // Intro script. Node types: line | choice | acronym | sign. (The title screen already
   // plays the acronym collapse, so the intro skips the acronym node.)
   // A choice adds traits and plays its reply.
   intro: [
-    { type: 'line', text: 'Ah. A new technician. You found the basement. Most people need two tries.' },
+    { type: 'line', text: 'Ah. A new technician. You found the basement. Most people need a few tries.' },
     { type: 'line', text: 'I am Director Crane. Welcome to the program.' },
     { type: 'line', text: 'The program\'s full name wears on people. Staff use the initials.' },
     { type: 'choice', text: 'Questions? Most new technicians have one.', options: [
@@ -267,7 +275,7 @@ window.ELDRITCH_DATA = {
     { type: 'line', text: 'Your subject is in Cell 4, ensure they do not commit any infractions. They almost always do.' },
     { type: 'line', text: 'When they do, you may provide Rehabilitative Feedback. Every infraction you correct earns credits.' },
     { type: 'line', text: 'You are not the only technician on this floor. Five others are watching cells like yours. At 17:00 each day we compare what everyone earned.' },
-    { type: 'line', text: 'The lowest earner is cut from the program. Twenty days from now, whoever is left becomes a permanent member of staff.' },
+    { type: 'line', text: 'Every three days we will cut the lowest earner from the program. At the end of this initiative whoever is left becomes a permanent member of staff.' },
     { type: 'choice', text: 'Anything else?', options: [
       { text: 'What if they do not break any rules?', traits: { curiosity: 1 },                  reply: 'Then the rules will change until they do. That is not your concern.' },
       { text: 'Could I just talk to them instead?',    traits: { empathy: 2 },                    reply: 'There is an intercom. It earns very little. Technicians who rely on it tend not to last.' },
@@ -306,16 +314,17 @@ window.ELDRITCH_DATA = {
       { target: 'shop',  wait: 'buy',     grant: 'alert', text: 'Credits buy upgrades at the REQ-9 terminal. I have put {cr} credits on your card. Requisition the Motion Alert. (S)' },
       { target: 'feed',  wait: 'alerted', provoke: true, text: 'The Motion Alert names the rule on the feed the moment they break it. Watch for it. Answer them however you like.' },
       { target: 'file',  wait: 'file',    text: 'For more information on your subject you may review their file. (F)' },
-      { target: 'rank',  next: true,      text: 'RANK shows where you stand among the six technicians today. Last place at 17:00 is cut. Spending credits never lowers it.' },
+      { target: 'rank',  next: true,      text: 'RANK shows where you stand among the six technicians today. Every third day the lowest three-day tally is cut. Spending credits never lowers it.' },
       { target: 'feed',  next: 'Begin day 1', stare: 'IS IT LISTENING NOW?', text: 'Ignore that. Volunteers say all sorts of things. They will be returned to wherever volunteers go. Cell 4 is yours, {name}.' },
     ],
     reset: 'Your console is reset for Cell 4. Nothing from orientation carries over.',
   },
 
-  // Day 20. The choice options name the ending they lead to; "refuse" resolves to
+  // Day 14. The choice options name the ending they lead to; "refuse" resolves to
   // Happy for a run that never used the feedback console, otherwise Failed.
   finale: [
-    { type: 'line', text: 'Twenty days, {name}. You are still here. Most of them are not.' },
+    { type: 'line', text: 'Technician {lastRival} was asked this morning to do what was necessary. They declined. They have been eliminated from the program.' },
+    { type: 'line', text: 'Fourteen days, {name}. You are still here. Nobody else is.' },
     { type: 'line', text: '{subject} has completed the program. The Initiative does not release graduates.' },
     { type: 'line', text: 'Today\'s directive is simple. Terminate the subject. The console will accept the order. Then you will be a Doctor.' },
     { type: 'choice', text: 'Well?', options: [
@@ -324,9 +333,10 @@ window.ELDRITCH_DATA = {
     ] },
   ],
 
-  // Day 20 when the subject has become a Vessel. Both answers lead to the Vessel ending.
+  // Day 14 when the subject has become a Vessel. Both answers lead to the Vessel ending.
   finaleVessel: [
-    { type: 'line', text: 'Twenty days, {name}. You are still here. The subject is still here. Something else is here too.' },
+    { type: 'line', text: 'Technician {lastRival} was asked this morning to do what was necessary. They declined. They have been eliminated from the program.' },
+    { type: 'line', text: 'Fourteen days, {name}. You are still here. The subject is still here. Something else is here too.' },
     { type: 'line', text: '{subject} has completed the program. They are ready. So, I think, are you.' },
     { type: 'line', text: 'Today\'s directive is simple. Terminate the subject. The console will accept the order.' },
     { type: 'choice', text: 'Well?', options: [
@@ -335,5 +345,5 @@ window.ELDRITCH_DATA = {
     ] },
   ],
 
-  openingMemo: '{subject} is prohibited from the behaviors on your clipboard. Correct each infraction while it is happening. At 17:00 your credits earned today are compared with the other five technicians on Sublevel 3, and the lowest earner is cut. Credits you spend at REQ-9 do not count against you.',
+  openingMemo: 'Subjects are prohibited from the behaviors on your clipboard. Correct each infraction while it is happening. At 17:00 your credits earned today are compared with the other five technicians on Sublevel 3. Every third day the lowest three-day tally is cut from the initiative.\nCredits you spend at REQ-9 do not count against you.',
 };
