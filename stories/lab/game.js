@@ -170,7 +170,54 @@ const Snd = {
         o.frequency.value = f; g.gain.value = [0.018, 0.008, 0.003][i];
         o.connect(g); g.connect(this.master); o.start();
       });
+      this.startTrack();
     } catch (e) { this.ac = null; }
+  },
+  // ---- the background track: a slow, dark pad under everything, with sparse high notes that
+  // fall away through a delay line. Quiet enough to be felt rather than heard. It sinks lower as
+  // the days pass, and a slightly sharp voice creeps in late and on full-moon days.
+  track: null,
+  CHORDS: [[73.42, 110, 146.83, 174.61], [58.27, 87.31, 116.54, 174.61], [49, 73.42, 98, 146.83], [55, 82.41, 110, 130.81]],
+  startTrack() {
+    if (!this.ac || this.track) return;
+    const ac = this.ac, out = ac.createGain(); out.gain.value = 0; out.connect(this.master);
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 320; lp.Q.value = 0.7; lp.connect(out);
+    const lfo = ac.createOscillator(), lfoG = ac.createGain(); lfo.frequency.value = 0.045; lfoG.gain.value = 90; lfo.connect(lfoG); lfoG.connect(lp.frequency); lfo.start();
+    const voices = this.CHORDS[0].map((f, i) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = i === 0 ? 'triangle' : 'sine'; o.frequency.value = f; o.detune.value = i % 2 ? 4 : -4;
+      g.gain.value = [0.5, 0.35, 0.25, 0.18][i]; o.connect(g); g.connect(lp); o.start();
+      return o;
+    });
+    const sour = ac.createOscillator(), sourG = ac.createGain();
+    sour.type = 'sine'; sour.frequency.value = this.CHORDS[0][1] * 1.03; sourG.gain.value = 0; sour.connect(sourG); sourG.connect(lp); sour.start();
+    const bell = ac.createGain(), dl = ac.createDelay(2), fb = ac.createGain(), dlp = ac.createBiquadFilter();
+    dl.delayTime.value = 0.46; fb.gain.value = 0.42; dlp.type = 'lowpass'; dlp.frequency.value = 1800;
+    bell.connect(out); bell.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); fb.connect(out);
+    this.track = { out, lp, voices, sour, sourG, bell, chord: 0, nextChord: ac.currentTime + 2, nextNote: ac.currentTime + 6 };
+  },
+  ambient() {
+    if (!this.ac || !this.track) return;
+    const tr = this.track, ac = this.ac, now = ac.currentTime, ph = S.phase;
+    const lvl = ph === 'desk' ? 0.026 : ph === 'title' ? 0.026 : ph === 'ending' ? 0.014 : 0.02;
+    tr.out.gain.setTargetAtTime(lvl, now, 1.5);
+    const late = Math.min(1, Math.max(0, ((S.day || 1) - 6) / 7)), moon = S.day >= CFG.fullMoonDay ? 1 : 0;
+    tr.lp.frequency.setTargetAtTime(320 - late * 110, now, 2);
+    tr.sourG.gain.setTargetAtTime(0.12 * late + 0.1 * moon, now, 3);
+    if (now >= tr.nextChord) {
+      tr.chord = (tr.chord + 1) % this.CHORDS.length;
+      const c = this.CHORDS[tr.chord];
+      tr.voices.forEach((o, i) => o.frequency.setTargetAtTime(c[i], now, 1.2));
+      tr.sour.frequency.setTargetAtTime(c[1] * 1.03, now, 1.2);
+      tr.nextChord = now + 22 + Math.random() * 10;
+    }
+    if (now >= tr.nextNote) {
+      const c = this.CHORDS[tr.chord], f = c[1 + Math.floor(Math.random() * 3)] * (Math.random() < 0.3 ? 8 : 4);
+      const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.5, now + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, now + 2.8);
+      o.connect(g); g.connect(tr.bell); o.start(now); o.stop(now + 3);
+      tr.nextNote = now + 7 + Math.random() * 9 - late * 2;
+    }
   },
   setMuted(m) { this.muted = m; if (this.master) this.master.gain.value = m ? 0 : 0.5; },
   // The hum in Cell 4. It follows the subject's Fracture: silent under 20 (10 with the Audio Feed),
@@ -209,21 +256,47 @@ const Snd = {
     s.connect(f); f.connect(g); g.connect(this.master); s.start(t);
   },
   play(name) {
+    const r = Math.random;
     switch (name) {
+      // console
       case 'click': this.tone(900, 0.04, 'square', 0.04); break;
+      case 'knob': this.noise(0.02, 0.1, 2600, 3); this.tone(1400, 0.02, 'square', 0.02); break;
+      case 'dial': this.tone(380, 0.035, 'square', 0.04); this.noise(0.03, 0.12, 1800, 2); this.tone(520, 0.03, 'square', 0.03, null, 0.04); break;
       case 'switch': this.noise(0.05, 0.15, 3000, 2); this.tone(200, 0.05, 'square', 0.04); break;
       case 'deny': this.tone(140, 0.18, 'square', 0.05); break;
-      case 'type': this.tone(260 + Math.random() * 60, 0.025, 'square', 0.015); break;
+      case 'type': this.tone(260 + r() * 60, 0.025, 'square', 0.015); break;
+      case 'tick': this.tone(1900, 0.012, 'square', 0.012); break;
+      case 'paper': this.noise(0.22, 0.06, 3200, 0.5); this.noise(0.12, 0.05, 4200, 0.6, 0.16); break;
+      case 'crt': this.noise(0.1, 0.07, 6000, 1); this.tone(2400, 0.12, 'sine', 0.015, 3200); this.tone(160, 0.08, 'square', 0.02, null, 0.02); break;
       case 'sound': this.tone(1760, 0.7, 'sine', 0.07); this.tone(1320, 0.7, 'sine', 0.04); break;
-      case 'shock': this.tone(70, 0.5, 'sawtooth', 0.08, 50); this.noise(0.5, 0.12, 4000, 0.5); break;
-      case 'water': this.noise(1.2, 0.14, 900, 0.4); break;
-      case 'strobe': for (let i = 0; i < 4; i++) this.noise(0.03, 0.2, 5000, 3, i * 0.33); break;
-      case 'cold': this.noise(2, 0.08, 300, 0.6); this.tone(120, 2, 'sine', 0.03, 80); break;
-      case 'warn': this.tone(660, 0.12, 'sine', 0.06); this.tone(880, 0.16, 'sine', 0.06, null, 0.13); break;
       case 'credit': this.tone(1046, 0.08, 'square', 0.035); this.tone(1568, 0.12, 'square', 0.035, null, 0.07); break;
-      case 'memo': this.noise(0.15, 0.08, 2500, 1); this.tone(520, 0.08, 'triangle', 0.05, null, 0.12); break;
-      case 'bang': this.tone(90, 0.12, 'triangle', 0.08, 60); break;
+      case 'memo': this.noise(0.15, 0.08, 2500, 1); this.tone(120, 0.14, 'square', 0.015); this.tone(520, 0.08, 'triangle', 0.05, null, 0.12); break;
       case 'buy': this.tone(523, 0.06, 'square', 0.04); this.tone(784, 0.1, 'square', 0.04, null, 0.06); break;
+      case 'warn': this.noise(0.07, 0.06, 2200, 0.7); this.tone(660, 0.12, 'sine', 0.06, null, 0.06); this.tone(880, 0.16, 'sine', 0.06, null, 0.19); break;
+      // stimuli
+      case 'shock': this.tone(70, 0.5, 'sawtooth', 0.08, 50); this.noise(0.5, 0.12, 4000, 0.5); for (let i = 0; i < 6; i++) this.noise(0.02, 0.18, 2500 + r() * 3000, 4, 0.05 + r() * 0.5); break;
+      case 'water': this.noise(0.25, 0.1, 600, 0.5); this.noise(1.2, 0.14, 1000, 0.4, 0.1); this.noise(0.8, 0.08, 1600, 0.5, 0.5); this.tone(90, 0.3, 'triangle', 0.03, 60); break;
+      case 'strobe': for (let i = 0; i < 4; i++) { this.noise(0.03, 0.2, 5000, 3, i * 0.33); this.tone(3200, 0.03, 'square', 0.02, null, i * 0.33); } break;
+      case 'cold': this.noise(2.4, 0.07, 260, 0.3); this.noise(1.6, 0.05, 700, 0.5, 0.3); this.tone(120, 2, 'sine', 0.03, 80); this.tone(2000, 1.8, 'sine', 0.008, 600, 0.2); break;
+      case 'protocol': this.tone(40, 1.4, 'sawtooth', 0.12, 20); this.noise(1.2, 0.14, 3000, 0.5); for (let i = 0; i < 10; i++) this.noise(0.02, 0.2, 2000 + r() * 4000, 4, r() * 1.1); this.tone(1200, 1.6, 'sine', 0.02, 200, 0.2); break;
+      // the cell
+      case 'bang': this.tone(90, 0.12, 'triangle', 0.08, 60); break;
+      case 'door': this.tone(170, 0.5, 'sawtooth', 0.025, 120); this.noise(0.5, 0.04, 900, 1); this.noise(0.06, 0.12, 2200, 2, 0.55); this.tone(110, 0.1, 'triangle', 0.05, 80, 0.55); break;
+      case 'doorClose': this.noise(0.4, 0.04, 900, 1); this.tone(90, 0.16, 'triangle', 0.08, 55, 0.4); this.noise(0.05, 0.14, 2600, 2, 0.4); break;
+      case 'step': this.noise(0.035, 0.05, 380 + r() * 120, 2); break;
+      case 'medic': this.tone(988, 0.12, 'sine', 0.05); this.tone(1319, 0.18, 'sine', 0.05, null, 0.14); this.noise(0.08, 0.05, 2200, 0.7, 0.3); break;
+      case 'collapse': this.tone(60, 0.28, 'triangle', 0.09, 38); this.noise(0.12, 0.1, 220, 0.8); this.noise(0.05, 0.06, 1200, 1, 0.05); break;
+      case 'alarm': for (let i = 0; i < 3; i++) { this.tone(640, 0.14, 'square', 0.035, null, i * 0.32); this.tone(470, 0.14, 'square', 0.035, null, i * 0.32 + 0.16); } break;
+      case 'speak': this.noise(0.09, 0.03, 500 + r() * 200, 4); this.noise(0.07, 0.025, 420 + r() * 200, 4, 0.1); break;
+      // the day
+      case 'dayStart': this.tone(120, 0.35, 'sawtooth', 0.02); for (let i = 0; i < 3; i++) this.noise(0.02, 0.1, 4000, 2, 0.05 + i * 0.09); this.tone(2400, 0.4, 'sine', 0.008, null, 0.3); break;
+      case 'bell': this.tone(1046, 0.7, 'sine', 0.05); this.tone(1568, 0.9, 'sine', 0.03, null, 0.25); this.noise(0.08, 0.05, 5000, 1, 0.9); break;
+      case 'cut': this.tone(55, 1.6, 'sawtooth', 0.04); this.tone(58.3, 1.6, 'sine', 0.035); this.tone(110, 1.2, 'triangle', 0.02, 82, 0.3); break;
+      // endings
+      case 'endDark': this.tone(49, 2.2, 'sawtooth', 0.05, 36); this.tone(98, 1.6, 'sine', 0.03, 73); this.noise(0.6, 0.05, 180, 0.5); break;
+      case 'endLight': this.tone(587, 1.2, 'sine', 0.04); this.tone(880, 1.4, 'sine', 0.03, null, 0.3); this.tone(1175, 1.8, 'sine', 0.025, null, 0.6); break;
+      case 'endDull': this.tone(110, 0.6, 'triangle', 0.06, 70); this.noise(0.3, 0.05, 400, 0.8); break;
+      case 'endHum': this.tone(41.2, 3, 'sine', 0.06, 82.4); this.tone(43.1, 3, 'sine', 0.04, 86.2); break;
     }
   },
 };
@@ -262,7 +335,7 @@ const EYE_PIX = (() => {
 const S = {
   phase: 'title', name: CFG.playerTitle + ' ' + CFG.defaultName, day: 1, speed: 1, time: 0, paused: false,
   credits: CFG.startCredits, owned: new Set(D.stimuli.filter(s => s.owned).map(s => s.id)),
-  upgrades: new Set(), stimIndex: 0, armed: false, intensity: 1, cooldown: 0, warnCd: 0,
+  upgrades: new Set(), off: new Set(), stimIndex: 0, armed: false, intensity: 1, cooldown: 0, warnCd: 0,
   traits: Object.fromEntries(D.traits.map(t => [t.id, 0])),
   stats: { caught: 0, warned: 0, missed: 0, falsePos: 0, earned: 0, maxInt: 0, feedback: 0, talks: 0, collapses: 0 },
   log: [], active: new Set(), counts: {}, memoQueue: [], violation: null,
@@ -334,7 +407,7 @@ function servedAll(endingId) {
     let fate = fateNow;
     if (endingId === 'terminate' && id === was) fate = 'Terminated';
     if (endingId === 'free' && id === was) fate = 'Escaped';
-    if (endingId === 'brutalist' && S.terminal === 'vessel') fate = 'Not available';
+    if (endingId === 'brutalist') fate = S.patient.dead ? 'Protocol Zero' : S.terminal === 'vessel' ? 'Not available' : 'Left in the cell';
     rows.push(subjectRecord(fate));
   });
   return rows;
@@ -654,7 +727,7 @@ function escapeSteps() {
 }
 function escapeBegin() {
   S.patient.out = true; S.stats.escapes = (S.stats.escapes || 0) + 1;
-  logEvent('escape-attempt', { cell: S.focus }); Snd.play('bang');
+  logEvent('escape-attempt', { cell: S.focus }); Snd.play('bang'); Snd.play('alarm');
   toast('Subject out of Cell ' + cellNo() + '. Security responding.', 'SECURITY');
 }
 function escapeEnd() {
@@ -667,7 +740,7 @@ function escapeEnd() {
 }
 function startRepair(kind) {
   const p = S.patient, spot = kind === 'door' ? SPOT.behindcot : SPOT.doorwall;
-  S.repair = { kind, t: 0, dur: repairDur() };
+  S.repair = { kind, t: 0, dur: repairDur() }; Snd.play('door');
   if (!p.collapsed && !p.dead && !medical() && !p.out) interrupt([{ move: spot }, { pose: 'stand', facing: 'back', at: spot, dur: repairDur() + 1, hold: true }, { move: SPOT.bedSit }, { pose: 'sit', facing: 'front', dur: 3 }]);
   toast('Crew to Cell ' + cellNo() + '. Subject to stand against the wall.', 'MAINTENANCE');
   logEvent('repair', { kind, cell: S.focus });
@@ -685,12 +758,20 @@ function finishRepair() {
 function medicDur() { return DMG.medicWork + CREW.open + CREW.walk * 2 + CREW.close; }
 function startMedic() {
   const p = S.patient, fee = DMG.medical;
-  S.medic = { t: 0, dur: medicDur(), at: [Math.round(p.x), Math.round(p.y)] };
+  S.medic = { t: 0, dur: medicDur(), at: [Math.round(p.x), Math.round(p.y)] }; Snd.play('medic'); Snd.play('door');
   S.credits = Math.max(0, S.credits - fee); S.today.earned = Math.max(0, S.today.earned - fee);
   S.today.medical = (S.today.medical || 0) + 1; S.today.medicalCost = (S.today.medicalCost || 0) + fee;
   floatText('-' + fee + ' CR', G[3]);
   toast('Medical team to Cell ' + cellNo() + '. Call-out charged to your console: ' + fee + ' cr.', 'MEDICAL');
   logEvent('medical-team', { fee, cell: S.focus });
+}
+// Advance a crew timer, with footsteps while they walk and the door closing behind them.
+function crewSounds(r, dt, spot) {
+  const before = r.t; r.t += dt;
+  const ph = crewPhase(r, spot);
+  if (ph && ph.walking && Math.floor(r.t / 0.3) !== Math.floor(before / 0.3)) Snd.play('step');
+  const closeAt = r.dur - CREW.close;
+  if (before < closeAt && r.t >= closeAt) Snd.play('doorClose');
 }
 function finishMedic() {
   S.medic = null;
@@ -787,7 +868,7 @@ const SAVE_FIELDS = ['name', 'day', 'credits', 'stimIndex', 'intensity', 'traits
 function saveGame() {
   try {
     storeCell();
-    const d = { owned: [...S.owned], upgrades: [...S.upgrades], active: [...S.active], rescinded: [...S.rescinded] };
+    const d = { owned: [...S.owned], upgrades: [...S.upgrades], off: [...S.off], active: [...S.active], rescinded: [...S.rescinded] };
     for (const k of SAVE_FIELDS) d[k] = k === 'log' ? S.log.slice(-400) : S[k];
     localStorage.setItem(SAVE_KEY, JSON.stringify(d));
   } catch (e) {}
@@ -797,7 +878,7 @@ function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
 function applySave(d) {
   for (const k of SAVE_FIELDS) if (d[k] !== undefined) S[k] = d[k];
   for (const r of ALL_RULES) S.counts[r.id] = S.counts[r.id] || { caught: 0, missed: 0 };
-  S.owned = new Set(d.owned); S.upgrades = new Set(d.upgrades); S.active = new Set(d.active); S.rescinded = new Set(d.rescinded || []);
+  S.owned = new Set(d.owned); S.upgrades = new Set(d.upgrades); S.off = new Set(d.off || []); S.active = new Set(d.active); S.rescinded = new Set(d.rescinded || []);
   S.time = 0; S.today = newToday(); rollNoise();
   // Each cell comes back at the start of its day: the subject on the cot, nothing mid-step.
   for (const id in S.cells) {
@@ -862,6 +943,7 @@ function say(key, chance = 1, who) {
 }
 function toast(msg, who = D.director.name) {
   const stay = logAtBottom();
+  if (S.phase === 'desk' && !tut) Snd.play('tick');
   const li = document.createElement('li'), t = document.createElement('i'), b = document.createElement('b'), s = document.createElement('span');
   t.textContent = S.phase === 'desk' ? (tut ? 'ORI' : clockStr()) : 'D' + String(S.day).padStart(2, '0');
   b.textContent = who; s.textContent = msg;
@@ -1355,7 +1437,7 @@ function updatePatient(dt) {
     if (!p.steps.length) p.steps = nextPlan();
     p.step = p.steps.shift(); p.stepT = 0;
     p.hidden = !!p.step.hidden;
-    if (p.step.bubble) p.bubble = p.step.bubble;
+    if (p.step.bubble) { p.bubble = p.step.bubble; if (S.phase === 'desk' && !p.hidden) Snd.play('speak'); }
     if (p.step.node && !p.step.move) startInstance(p.step);
     if (p.step.collapse) { p.collapsed = true; }
     if (p.step.out) escapeBegin();
@@ -1484,7 +1566,7 @@ function administer() {
     S.stats.collapses++; addTraits({ sadism: 3 }); logEvent('collapse', entry);
     bump(B.responseEffects.collapse);
     interrupt([{ pose: 'react_' + stim.fx, facing: 'front', dur: 1.2 }, { pose: 'collapsed', facing: 'front', dur: 18, collapse: true }, { pose: 'sitfloor', facing: 'front', dur: 3 }]);
-    say('collapse', 1);
+    say('collapse', 1); setTimeout(() => Snd.play('collapse'), reduceMotion ? 0 : 1100);
     if (S.terminal !== 'feral') startMedic();
     if (S.terminal === 'feral') { S.endEarlyAt = S.time + 3; say('feralCollapse', 1); }
     // A frail subject: overkill brings Medical, and Medical brings Security.
@@ -1554,22 +1636,24 @@ function turnDial(dir) {
   const n = D.stimuli.length;
   for (let i = 1; i <= n; i++) {
     const j = (S.stimIndex + dir * i + n * 10) % n;
-    if (S.owned.has(D.stimuli[j].id)) { if (j !== S.stimIndex) Snd.play('click'); S.stimIndex = j; return; }
+    if (S.owned.has(D.stimuli[j].id)) { if (j !== S.stimIndex) Snd.play('dial'); S.stimIndex = j; return; }
   }
 }
 function turnKnob(dir) {
   if (S.phase !== 'desk' || S.paused) return;
   const next = clamp(S.intensity + dir, 1, 10);
   if (next > maxIntensity()) { Snd.play('deny'); toast('Intensity above ' + maxIntensity() + ' needs the Limiter Removal requisition.', 'CONSOLE'); return; }
-  if (next !== S.intensity) Snd.play('click');
+  if (next !== S.intensity) Snd.play('knob');
   S.intensity = next;
 }
 function protocolRevealed(item) {
   const r = item.reveal;
+  if (r.day) return S.day >= r.day;
   return (S.stats.collapses >= r.collapses || S.stats.maxInt >= r.orMaxIntensity || S.terminal === 'feral');
 }
 // Conspiracy flags make the maintenance chain cheaper and earlier.
 function costOf(item) {
+  if (item.kind === 'protocol') return protocolCost(item);
   if (item.id === 'm_servo' && S.flags.door_known) return item.cost - 40;
   if (item.id === 'm_tape' && S.flags.map_complete) return Math.round(item.cost / 2);
   if (item.id === 'm_release' && S.flags.schedule_known) return Math.round(item.cost * 0.7);
@@ -1585,7 +1669,15 @@ function buy(item) {
   const cost = costOf(item);
   if (shopBlocker(item) || S.credits < cost) { Snd.play('deny'); return; }
   if (!item.consumable && (S.upgrades.has(item.id) || (item.stimulus && S.owned.has(item.stimulus)))) return;
-  if (item.kind === 'protocol' && !S.flags.confirmProtocol) { S.flags.confirmProtocol = true; Snd.play('deny'); openShop(); return; }
+  if (item.kind === 'protocol') {
+    if (!protocolTargets(item).length) {
+      Snd.play('deny');
+      if (item.terminal) toast('No subject in the selected cells can take this protocol.', 'CONSOLE');
+      else { toast('Subject is not available for termination.', 'CONSOLE'); say('vesselProtocol', 1); logEvent('protocol-refused'); }
+      return;
+    }
+    if (S.flags.confirmProtocol !== item.id) { S.flags.confirmProtocol = item.id; Snd.play('deny'); openShop(); return; }
+  }
   S.credits -= cost; Snd.play('buy');
   if (item.stimulus) S.owned.add(item.stimulus); else if (!item.consumable) S.upgrades.add(item.id);
   const p = S.patient;
@@ -1602,7 +1694,7 @@ function buy(item) {
   if (item.id === 'therapy') S.flags.therapyDay = S.day;
   addTraits(item.traits || {});
   logEvent('purchase', { item: item.id, cost });
-  if (item.kind === 'protocol') { runProtocol(); return; }
+  if (item.kind === 'protocol') { runProtocol(item); return; }
   if (item.kind === 'station') {
     if (!S.stations.includes(item.slot)) S.stations.push(item.slot);
     rebuildDesk();
@@ -1615,27 +1707,62 @@ function buy(item) {
   if (item.kind === 'stimulus' && Math.random() < 0.5) toast(pick(['A sound investment.', 'The Initiative appreciates your commitment.', 'Install complete. Enjoy.']));
   openShop();
 }
-function runProtocol() {
-  el.modal.dataset.kind = ''; closeModal();
-  if (S.terminal === 'vessel') {
-    // The console will not terminate a Vessel. The requisition stays on file.
-    S.upgrades.add('protocol0'); S.flags.confirmProtocol = false;
-    toast('Subject is not available for termination.', 'CONSOLE'); say('vesselProtocol', 1);
-    logEvent('protocol-refused');
+// Protocol scope: one cell, a pair, or every occupied cell. Price scales with the count.
+const protoScope = {};
+function scopeOptions() {
+  const occ = occupied(), cn = id => 'Cell ' + stationOf(id).cell;
+  const opts = occ.map(id => ({ v: id, label: cn(id) + (occ.length > 1 ? ' only' : ''), n: 1 }));
+  if (occ.length >= 3) for (let i = 0; i < occ.length; i++) for (let j = i + 1; j < occ.length; j++) opts.push({ v: occ[i] + '+' + occ[j], label: 'Cells ' + stationOf(occ[i]).cell + ' and ' + stationOf(occ[j]).cell, n: 2 });
+  if (occ.length >= 2) opts.push({ v: 'all', label: 'All cells (' + occ.length + ')', n: occ.length });
+  return opts;
+}
+function scopeCells(v) { const occ = occupied(); return v === 'all' ? occ : String(v || S.focus).split('+').filter(id => occ.includes(id)); }
+function scopeOf(item) { const opts = scopeOptions(); return opts.some(o => o.v === protoScope[item.id]) ? protoScope[item.id] : S.focus; }
+function protocolCost(item) { const n = scopeCells(scopeOf(item)).length; return Math.round(item.cost * (n <= 1 ? 1 : n === 2 ? 1.75 : 2.25)); }
+function scopeSelect(item) {
+  const opts = scopeOptions(); if (opts.length <= 1) return '';
+  const cur = scopeOf(item);
+  return `<select class="scope" data-scope="${item.id}" aria-label="Cells">${opts.map(o => `<option value="${o.v}"${o.v === cur ? ' selected' : ''}>${esc(o.label)} · ${Math.round(item.cost * (o.n <= 1 ? 1 : o.n === 2 ? 1.75 : 2.25))} cr</option>`).join('')}</select>`;
+}
+// Cells the protocol can act on: subjects not yet in a terminal state, or, for Zero, not a Vessel.
+function protocolTargets(item) {
+  return scopeCells(scopeOf(item)).filter(id => withCell(id, () => item.terminal ? !S.terminal : S.terminal !== 'vessel'));
+}
+function runProtocol(item) {
+  el.modal.dataset.kind = ''; closeModal(); S.flags.confirmProtocol = false;
+  const cells = scopeCells(scopeOf(item)), targets = protocolTargets(item), was = S.focus;
+  logEvent('protocol', { item: item.id, cells, targets });
+  if (item.terminal) {
+    const done = [], skipped = [];
+    for (const id of cells) withCell(id, () => {
+      if (!targets.includes(id)) { skipped.push('Cell ' + cellNo() + ' (' + stateNow().label + ')'); return; }
+      const p = S.patient, axis = B.terminals[item.terminal].axis;
+      S.axes[axis] = 100; enterTerminal(item.terminal); done.push('Cell ' + cellNo());
+      if (item.terminal === 'hollow') {
+        S.medic = { t: 0, dur: medicDur(), at: [Math.round(p.x), Math.round(p.y)] }; Snd.play('medic'); Snd.play('door');
+        interrupt([{ pose: 'collapsed', facing: 'front', dur: medicDur() + 2, collapse: true }, { pose: 'sitfloor', facing: 'front', dur: 4 }]);
+      }
+      if (item.terminal === 'feral') { p.stress = 100; S.shake = 0.3; S.fx.push({ type: 'spark', t: 0, dur: 1, x: p.x, y: p.y }); Snd.play('alarm'); }
+      if (item.terminal === 'vessel') { S.humBoost = 1; Snd.play('endHum'); interrupt([{ move: SPOT.center }, { pose: 'stand', facing: 'front', dur: 4, bubble: fmt(B.terminals.vessel.lines[0]), chant: true }]); }
+      if (item.terminal === 'conspirator') { Snd.play('warn'); interrupt([{ move: SPOT.camera }, { pose: 'stand', facing: 'front', dur: 3, bubble: 'I UNDERSTAND.' }]); }
+    });
+    useCell(was);
+    toast(item.name + ' authorized for ' + done.join(', ') + '.' + (skipped.length ? ' No change in ' + skipped.join(', ') + '.' : ''), 'CONSOLE');
+    toast(fmt(pick(D.lines.protocolRun || ['Noted, {name}. The Initiative appreciates initiative.'])));
     return;
   }
-  // Every subject on every monitor. A Vessel elsewhere on the desk is left where it is.
-  let spared = 0;
-  eachCell(() => {
-    if (S.terminal === 'vessel') { spared++; return; }
+  // Protocol Zero: every subject in the selected cells. A Vessel is left where it is.
+  const spared = cells.filter(id => !targets.includes(id));
+  for (const id of targets) withCell(id, () => {
     const p = S.patient;
     interrupt([]); p.dead = true; p.pose = 'collapsed'; p.collapsed = false; p.steps = []; p.step = null; p.bubble = null; p.hidden = false; p.out = false;
     S.medic = null; S.repair = null;
     S.fx.push({ type: 'spark', t: 0, dur: 1.4, x: p.x, y: p.y });
   });
-  S.shake = 0.6; Snd.play('shock');
+  useCell(was);
+  S.shake = 0.6; Snd.play('protocol');
   toast('Protocol Zero authorized. Thank you, ' + S.name + '.');
-  if (spared) toast('Cell ' + stationOf(S.stations.find(id => cellField(id, 'terminal') === 'vessel')).cell + ' is not available for termination.', 'CONSOLE');
+  if (spared.length) toast(spared.map(id => 'Cell ' + stationOf(id).cell).join(', ') + ' not available for termination.', 'CONSOLE');
   S.pendingEnding = { id: 'brutalist', t: 4 };
 }
 
@@ -1666,6 +1793,13 @@ function morning(contact) {
   S.nextMemos = [];
   rollLedger();
 }
+// A Feral subject's first act: the cot, kicked apart. (Entry at 09:00 schedules it; entry
+// mid-shift, by serum or the admin console, does it at once.)
+function feralKick() {
+  const p = S.patient;
+  if (S.damage.bed || p.dead || p.gone || p.collapsed || medical()) return;
+  interrupt([{ move: SPOT.bedside }, { pose: 'kick', facing: 'left', dur: 3.6, wreck: 'bed' }, { pose: 'stand', facing: 'front', dur: 1 }]);
+}
 function enterTerminal(id) {
   S.terminal = id; S.terminalDay = S.day; S.flags.fileNew = true;
   logEvent('terminal', { state: id });
@@ -1674,7 +1808,7 @@ function enterTerminal(id) {
     moveFamily('lie', 'lie_attention', 'terminal'); moveFamily('eat', 'eat_told', 'terminal');
     queueMemo({ memo: 'fidget' }); S.hollowMemos = ['breathe', 'blink'];
   }
-  if (id === 'feral') { S.flags.shockTorn = S.day; S.flags.lensCracked = true; S.flags.padsTorn = true; breakItem('lens'); breakItem('pads'); moveFamily('eat', 'eat_refuse', 'terminal'); }
+  if (id === 'feral') { S.flags.lensCracked = true; breakItem('lens'); moveFamily('eat', 'eat_refuse', 'terminal'); if (S.phase === 'desk') feralKick(); }
   if (id === 'vessel') S.frozenPace = paceToday(true);
   if (id === 'conspirator') moveFamily('wave', 'wave_morning', 'terminal');
 }
@@ -1682,13 +1816,14 @@ function startDesk() {
   if (S.day >= CFG.totalDays) { startFinale(); return; }
   S.phase = 'desk';
   el.dlg.hidden = true; el.frame.classList.remove('dim');
-  saveGame();
+  saveGame(); Snd.play('dayStart');
   activateRules();
   el.hint.textContent = DEFAULT_HINT;
   eachCell(() => {
     const p = S.patient;
     if (S.fam.wave.node === 'wave_morning' && !S.flags.lensCracked) p.scheduled = NODE.wave_morning;
     if (S.terminal === 'vessel') p.steps = [{ move: SPOT.center }, { pose: 'stand', facing: 'front', dur: 4, bubble: fmt(B.terminals.vessel.lines[0]), chant: true }];
+    if (S.terminal === 'feral' && S.terminalDay === S.day) feralKick();
   });
   if (S.day === 1) showOpeningMemo();
   else { closeModal(); toast('Day ' + S.day + ' of ' + CFG.totalDays + '. ' + (S.rivals.length + 1) + ' technicians on the board. ' + (cutDayOf(S.day) ? 'The lowest tally is cut at the end of day ' + cutDayOf(S.day) + '.' : 'No cut this window.')); }
@@ -1696,7 +1831,7 @@ function startDesk() {
   else if (S.day === CFG.fullMoonDay) say('fullMoon');
 }
 function endShift() {
-  S.armed = false; S.endEarlyAt = 0;
+  S.armed = false; S.endEarlyAt = 0; Snd.play('bell');
   eachCell(() => { S.violation = null; if (S.inst) resolve(S.inst, 'allowed'); });
   const me = playerDay();
   S.credits += me.bonus; S.stats.earned += me.bonus;
@@ -1782,7 +1917,7 @@ function ending(id, opts = {}) {
   S.phase = 'ending'; S.endingId = id; S.endingOpts = opts; S.armed = false; S.pendingEnding = null; el.hint.textContent = '';
   el.dlg.hidden = true;
   if (id === 'terminate') { p.dead = true; p.pose = 'collapsed'; p.bubble = null; p.hidden = false; p.x = 42; p.y = 46; }
-  if (id === 'brutalist') eachCell(() => { if (S.terminal !== 'vessel') { S.patient.dead = true; S.patient.pose = 'collapsed'; S.patient.bubble = null; S.patient.hidden = false; } });
+  if (id === 'brutalist') eachCell(() => { if (S.patient.dead) { S.patient.pose = 'collapsed'; S.patient.bubble = null; S.patient.hidden = false; } });
   if (id === 'free') p.gone = true;
   if (id === 'vessel') { p.vesselEnd = true; S.humBoost = 1; }
   if (id === 'terminate' && S.terminal === 'conspirator') addTraits({ sadism: 3 });
@@ -1981,7 +2116,7 @@ function showDirective(item) {
 function clipboardRules() { if (tut) return D.rules.filter(r => S.active.has(r.id)); return D.rules.concat(ALL_RULES.filter(r => r.extra && S.active.has(r.id))); }
 function openRules() {
   if (S.phase !== 'desk') return;
-  Snd.play('click');
+  Snd.play('paper');
   if (!S.flags.readRules) { S.flags.readRules = true; addTraits({ curiosity: 0.5 }); }
   const rows = clipboardRules().map(r => {
     if (!S.active.has(r.id)) return `<li class="redacted"><span>${'█'.repeat(Math.min(22, r.text.length))}</span><small>Pending directive</small></li>`;
@@ -2011,7 +2146,7 @@ const CONSPIRACY_NOTES = {
 };
 function openFile() {
   if (S.phase !== 'desk') return;
-  Snd.play('click');
+  Snd.play('paper');
   addTraits({ curiosity: S.flags.readFile ? 0.2 : 2 }); S.flags.readFile = true; S.flags.fileNew = false;
   logEvent('read-file', { patient: S.subject.id });
   const p = S.subject, st = stateNow();
@@ -2059,7 +2194,10 @@ function foldGroup(kind, label, meta, inner) {
 }
 function openShop() {
   if (S.phase !== 'desk' && !(S.phase === 'review' && S.reviewArgs)) return;
-  const groups = [['stimulus', 'Feedback stimuli', ''], ['upgrade', 'Console upgrades', ''],
+  if (el.modal.dataset.kind !== 'shop' || el.modal.hidden) Snd.play('crt');
+  const groups = [['stimulus', 'Direct feedback stimuli', ''],
+    ['constant', 'Constant stimuli', 'Fixtures that run all shift, in every cell on the console. Each one moves the subject a little further along one track every hour, whatever the console does with the feed. An installed fixture can be switched off and on.'],
+    ['upgrade', 'Console upgrades', ''],
     ['station', 'Monitoring stations', 'Each station adds a monitor and a cell to this console. The Intake Ledger can admit a subject to an empty station, and the console routes to one station at a time.'],
     ['comfort', 'Subject comfort', `Each comfort item raises intercom pay and the bonus for a day with no missed infractions. Rapport: ${comfortCount()} item${comfortCount() === 1 ? '' : 's'}, intercom pays ${warnMult().toFixed(1)}x, perfect day +${Math.round(perfectRate() * 100)}%.`],
     ['maintenance', 'Maintenance', 'Repair and cleaning tickets for damage the subjects do. Damage left standing at 17:00 is deducted, more for every day it stands.'], ['protocol', 'Protocols', '']];
@@ -2077,14 +2215,16 @@ function openShop() {
       const block = shopBlocker(i), cost = costOf(i);
       let btn;
       if (i.busy) btn = `<span class="tag ok">Crew in cell</span>`;
+      else if (owned && i.kind === 'constant') btn = `<div class="btns"><span class="tag ok">${S.off.has(i.id) ? 'Off' : 'Running'}</span><button type="button" class="btn sm ghost" data-toggle="${i.id}">${S.off.has(i.id) ? 'Switch on' : 'Switch off'}</button></div>`;
       else if (owned) btn = `<span class="tag ok">${i.kind === 'maintenance' ? 'Filed' : i.kind === 'protocol' ? 'Refused' : 'Installed'}</span>`;
       else if (block) btn = `<span class="tag">${esc(block)}</span>`;
       else if (S.credits < cost) btn = `<button type="button" class="btn sm" disabled>Need ${cost - S.credits} more</button>`;
-      else if (i.kind === 'protocol' && S.flags.confirmProtocol) btn = `<button type="button" class="btn sm danger" data-buy="${i.id}" id="buy-${i.id}">Confirm. No undo</button>`;
+      else if (i.kind === 'protocol' && S.flags.confirmProtocol === i.id) btn = `<button type="button" class="btn sm danger" data-buy="${i.id}" id="buy-${i.id}">Confirm. No undo</button>`;
       else btn = `<button type="button" class="btn sm" data-buy="${i.id}" id="buy-${i.id}">Requisition</button>`;
       const price = cost !== i.cost ? `<s>${i.cost}</s> ${cost} cr` : `${cost} cr`;
       const tag = i.repair ? `<span class="tag bad">Day ${i.days} · ${DMG.penalty * i.days} cr at 17:00</span>` : '';
-      return `<li class="${i.kind === 'locked' ? 'locked' : ''} ${i.kind === 'protocol' ? 'protocol' : ''}"><div><b>${esc(i.name)}</b><span>${esc(fmt(i.desc))}</span>${tag}</div><em>${price}</em>${btn}</li>`;
+      const scope = i.kind === 'protocol' ? scopeSelect(i) : '';
+      return `<li class="${i.kind === 'locked' ? 'locked' : ''} ${i.kind === 'protocol' ? 'protocol' : ''}"><div><b>${esc(i.name)}</b><span>${esc(fmt(i.desc))}</span>${tag}${scope}</div><em>${price}</em>${btn}</li>`;
     }).join('');
     const have = list.filter(i => !i.consumable && (S.upgrades.has(i.id) || (i.stimulus && S.owned.has(i.stimulus)))).length;
     const meta = kind === 'protocol' ? '' : `${have} of ${list.length} ${kind === 'maintenance' ? 'filed' : 'installed'}`;
@@ -2107,6 +2247,11 @@ function openShop() {
     if (cell) buyRepair(D.shop.find(i => i.id === id), cell); else buy(D.shop.find(i => i.id === id));
   }));
   el.modalBody.querySelectorAll('[data-intake]').forEach(b => b.addEventListener('click', () => buySubject(+b.dataset.intake)));
+  el.modalBody.querySelectorAll('[data-toggle]').forEach(b => b.addEventListener('click', () => {
+    const id = b.dataset.toggle; if (S.off.has(id)) S.off.delete(id); else S.off.add(id);
+    Snd.play('switch'); logEvent('constant-' + (S.off.has(id) ? 'off' : 'on'), { item: id }); openShop();
+  }));
+  el.modalBody.querySelectorAll('[data-scope]').forEach(sel => sel.addEventListener('change', () => { protoScope[sel.dataset.scope] = sel.value; S.flags.confirmProtocol = false; Snd.play('click'); openShop(); }));
   el.modalBody.querySelectorAll('[data-dest]').forEach(s => s.addEventListener('change', () => { const x = S.ledger && S.ledger.slots[+s.dataset.dest]; if (x) { x.dest = s.value; Snd.play('click'); openShop(); } }));
   el.modalBody.querySelectorAll('[data-reroll]').forEach(b => b.addEventListener('click', rerollLedger));
   $('m-close').addEventListener('click', () => { el.modal.dataset.kind = ''; S.flags.confirmProtocol = false; closeModal(); if (S.phase === 'review' && S.reviewArgs) openReview(...S.reviewArgs); });
@@ -2141,6 +2286,7 @@ function openReview(rows, rec, cut, news, win) {
   const changes = S.today.changes.filter(c => c.to !== c.from).slice(-4)
     .map(c => `<li>${esc(fmt(NODE[c.to].label))} <small>(was: ${esc(fmt(NODE[c.from].label).toLowerCase())})</small></li>`).join('');
   const final = S.day + 1 >= CFG.totalDays;
+  if (cut || (news && !news.spared)) Snd.play('cut');
   openModal(`
     <p class="eyebrow">Day ${S.day} · 17:00 · Window ${w.idx}${cutAt ? `, day ${S.day - windowStart(S.day) + 1} of ${CFG.cutEvery}` : ''} · ${n} technicians</p>
     <h2>${head}</h2>
@@ -2185,6 +2331,7 @@ function openEnding(e, id) {
   const st = S.stats;
   const survived = id === 'failed' || id === 'refused' ? S.day - (id === 'failed' ? 1 : 0) : S.day;
   const served = servedAll(id);
+  Snd.play({ terminate: 'endDark', brutalist: 'endDark', failed: 'endDull', refused: 'endDull', happy: 'endLight', free: 'endLight', vessel: 'endHum' }[id] || 'endDull');
   openModal(`
     <p class="eyebrow">Ending · Day ${S.day} of ${CFG.totalDays}</p>
     <h2 class="ending-title">${esc(e.title)}</h2>
@@ -2290,6 +2437,7 @@ function drawCell(t) {
   else if (dOpen > 0) { const w = Math.max(1, Math.round(12 * dOpen)); rect(c, 64, 6, w, 19, G[0]); rect(c, 64 + w, 6, 13 - w, 19, G[2]); rect(c, 76, 6, 2, 19, G[3]); }
   else if (S.damage.door) { rect(c, 64, 6, 3, 19, G[0]); rect(c, 66, 7, 1, 17, G[1]); }
   if ((S.repair || S.medic) && dOpen >= 0.5) drawGuard(c, 70, 25, t);
+  drawFixtures(c, t);
   if (S.upgrades.has('mural')) { rect(c, 3, 5, 12, 9, G[3]); rect(c, 4, 6, 10, 4, G[2]); rect(c, 4, 10, 10, 3, G[1]); for (let x = 4; x < 14; x += 2) rect(c, x, 10, 1, 2, G[3]); rect(c, 9, 5, 1, 9, G[3]); }
   if (S.upgrades.has('radio')) { rect(c, 6, 42, 5, 3, G[3]); rect(c, 7, 43, 1, 1, G[1]); rect(c, 10, 39, 1, 3, G[2]); }
   if (S.upgrades.has('letters')) { rect(c, 22, 30, 3, 2, G[4]); rect(c, 24, 29, 3, 2, G[4]); }
@@ -2427,6 +2575,18 @@ function drawMedic(c, m, t) {
   else { rect(c, x - 6, y - 5, 3, 1, G[4]); rect(c, x - 7, y - 4, 2, 1, G[3]); if (k) rect(c, x - 6, y - 8, 1, 2, G[1]); }
   rect(c, x + (m.chest ? -7 : 4), y - 3, 3, 3, G[1]); rect(c, x + (m.chest ? -6 : 5), y - 4, 1, 1, G[4]);
 }
+// The constant-stimulus fixtures on the cell walls, each with a small motion so a running one reads as live.
+function drawFixtures(c, t) {
+  const on = id => S.upgrades.has(id) && !S.off.has(id);
+  if (on('c_edoor')) { rect(c, 63, 4, 15, 1, G[4]); if (Math.floor(t * 9) % 11 === 0) { rect(c, 63 + Math.floor(t * 37) % 15, 5, 1, 2, G[4]); rect(c, 77, 8 + Math.floor(t * 13) % 15, 1, 1, G[4]); } }
+  if (on('c_heat')) { rect(c, 54, 4, 8, 3, G[3]); for (let x = 55; x < 62; x += 2) rect(c, x, 5, 1, 1, Math.floor(t * 1.5) % 2 ? G[4] : G[1]); }
+  if (on('c_noise')) { rect(c, 33, 4, 6, 4, G[3]); rect(c, 34, 5, 4, 2, G[1]); for (let i = 0; i < 5; i++) rect(c, Math.floor(Math.random() * 84), Math.floor(Math.random() * 66), 1, 1, G[2]); }
+  if (on('c_vapour')) { rect(c, 40, 4, 8, 2, G[3]); for (let i = 0; i < 4; i++) rect(c, 41 + (i * 2 + Math.floor(t * 3)) % 8, 7 + Math.floor((t * 4 + i * 5) % 10), 1, 1, G[2]); }
+  if (on('c_window')) { const g = Math.floor(t * 0.5) % 2 ? G[4] : G[3]; rect(c, 17, 5, 12, 9, G[3]); rect(c, 18, 6, 10, 7, g); rect(c, 23, 6, 1, 7, G[3]); rect(c, 18, 9, 10, 1, G[3]); }
+  if (on('c_voice')) { rect(c, 50, 9, 5, 4, G[3]); rect(c, 51, 10, 3, 2, G[1]); rect(c, 56, 10 + Math.floor(t * 8) % 3, 1, 1, G[4]); }
+  if (on('c_ulf')) { rect(c, 2, 16, 4, 6, G[3]); rect(c, 3, 17, 2, 4, G[1]); const k = Math.floor(t * 2) % 3; rect(c, 3 - k, 15 - k, 2 + 2 * k, 1, k ? G[2] : G[3]); }
+  if (on('c_strobe') && Math.floor(t * 10) % 47 === 0) { c.fillStyle = 'rgba(184,239,208,0.45)'; c.fillRect(0, 0, 84, 66); }
+}
 // A guard in the open doorway: dark uniform, cap, belt, facing the cell.
 function drawGuard(c, x, y, t) {
   rect(c, x - 2, y - 13, 5, 2, G[1]); rect(c, x - 3, y - 12, 7, 1, G[1]);
@@ -2506,7 +2666,10 @@ function drawPatient(c, p, t) {
     if (drift === 'fracture' && pose !== 'attention' && (t % 3.1) < 0.1) x += 1;      // Fraying: a twitch every few seconds
     if (drift === 'defiance' && pose === 'stand' && Math.floor(t * 0.9) % 2) x += 1;    // Agitated: shuffles on the spot
   }
-  const R = (dx, dy, w, h, col) => { c.fillStyle = col; c.fillRect(x + dx, y + dy, w, h); };
+  // A Feral subject is drawn a shade bigger: every part scaled from the feet, snapped to whole pixels.
+  const k = term === 'feral' ? TUNE.feralScale || 1.18 : 1;
+  const R = k === 1 ? (dx, dy, w, h, col) => { c.fillStyle = col; c.fillRect(x + dx, y + dy, w, h); }
+    : (dx, dy, w, h, col) => { const x1 = Math.round(dx * k), x2 = Math.round((dx + w) * k), y1 = Math.round(dy * k), y2 = Math.round((dy + h) * k); c.fillStyle = col; c.fillRect(x + x1, y + y1, Math.max(1, x2 - x1), Math.max(1, y2 - y1)); };
 
   // ---- lying and crawling poses
   if (pose === 'lie' || pose === 'collapsed') {
@@ -3084,6 +3247,7 @@ el.scrim.addEventListener('click', dismissModal);
 window.addEventListener('keydown', e => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
   const k = e.key;
+  if (konamiKey(k) && (S.phase === 'desk' || S.phase === 'review')) { e.preventDefault(); Snd.init(); openAdmin(); return; }
   if (k === 'm' || k === 'M') { toggleMute(); return; }
   if (!el.modal.hidden) {
     if (k === 'Escape') { e.preventDefault(); dismissModal(); }
@@ -3147,16 +3311,88 @@ if (save && cont && save.day > 1 && !/^#day/.test(location.hash)) {
 }
 // Testing shortcut: open the link with #day12 (any day 1-20) to start that morning with a rough
 // mid-game state. Add a terminal state to start there: #day14-vessel, -hollow, -conspirator, -feral.
+// Fill the record for every day before `d` with plausible scores, cutting the lowest rival on
+// cut days, and mark the rule memos of those days as already read. Used by the debug hashes and
+// the admin console.
+function synthDays(d) {
+  const from = S.history.length ? S.history[S.history.length - 1].day + 1 : 1;
+  for (let i = from; i < d; i++) {
+    const opp = 60 + i * 12, scores = Object.fromEntries(S.rivals.map(r => [r.name, Math.round(opp * r.drive * 0.9)]).concat([[S.name, Math.round(opp * 0.95)]]));
+    S.history.push({ day: i, opportunity: opp, scores });
+    if (isCutDay(i) && S.rivals.length > 1) { const r = S.rivals.reduce((lo, x, j) => x.drive < S.rivals[lo].drive ? j : lo, 0); S.rivals.splice(r, 1); S.noise.splice(r, 1); }
+  }
+  D.rules.forEach(r => { if (r.unlockDay < d) { S.active.add(r.id); S.flags['memo_' + r.id] = true; } });
+}
+
+// ---------------------------------------------------------------- admin console
+// Up Up Down Down Left Right Left Right B A (or A B) on the desk or the report opens a cheat
+// console: set the routed subject's state, add 100 credits, start any day.
+const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight'];
+let konami = [];
+function konamiKey(k) {
+  konami.push(k.length === 1 ? k.toLowerCase() : k); if (konami.length > 10) konami.shift();
+  if (konami.length < 10 || !konami.slice(0, 8).every((x, i) => x === KONAMI[i])) return false;
+  const tail = konami.slice(8).join('');
+  if (tail !== 'ab' && tail !== 'ba') return false;
+  konami = []; return true;
+}
+function adminSetState(id) {
+  const st = B.states.find(x => x.id === id); if (!st) return;
+  const was = stateNow().id;
+  if (st.id === 'baseline') { S.terminal = null; S.terminalDay = 0; S.frozenPace = 0; for (const a of AXES) S.axes[a] = clamp(B.axes[a].start + ((mod('axisStart') || {})[a] || 0), 0, 100); }
+  else {
+    for (const a of AXES) if (a !== st.axis) S.axes[a] = Math.min(S.axes[a], st.terminal ? 60 : 35);
+    S.axes[st.axis] = st.terminal ? 100 : 55;
+    if (!st.terminal) { S.terminal = null; S.terminalDay = 0; S.frozenPace = 0; }
+    else if (S.terminal !== st.id) {
+      S.terminal = null; enterTerminal(st.id);
+      for (const m of S.nextMemos) S.memoQueue.push({ memo: m.id, cell: m.cell }); S.nextMemos = [];
+      if (st.id === 'vessel') S.mural = EYE_PIX.length - 10;
+    }
+  }
+  S.flags.fileNew = true;
+  logEvent('admin-state', { from: was, to: st.id, cell: S.focus });
+  toast('Admin: Cell ' + cellNo() + ' set to ' + st.label + '.', 'ADMIN');
+}
+function adminSetDay(d) {
+  d = clamp(Math.round(d) || 1, 1, CFG.totalDays);
+  logEvent('admin-day', { from: S.day, to: d });
+  closeModal(); el.modal.dataset.kind = '';
+  S.reviewArgs = null; S.phase = 'desk';
+  S.history = S.history.filter(h => h.day < d);
+  synthDays(d);
+  S.day = d - 1;
+  nextDay();
+  toast('Admin: day set to ' + d + '.', 'ADMIN');
+}
+function openAdmin() {
+  if (S.phase !== 'desk' && S.phase !== 'review') return;
+  const cur = stateNow().id;
+  const states = B.states.map(x => `<option value="${x.id}"${x.id === cur ? ' selected' : ''}>${esc(x.label)}${x.terminal ? ' (terminal)' : ''}</option>`).join('');
+  openModal(`
+    <p class="eyebrow">Admin console · Day ${S.day} · Station ${S.focus}, Cell ${cellNo()} · Subject ${esc(S.subject.id)}</p>
+    <h2>Admin console</h2>
+    <p class="fine">Test controls. State changes apply to the routed cell. Everything here is written to the log.</p>
+    <div class="admin">
+      <label for="adm-state">Subject state</label><div><select id="adm-state">${states}</select> <button type="button" class="btn sm" id="adm-apply">Apply</button></div>
+      <label>Credits</label><div><b id="adm-cr">${S.credits}</b> cr <button type="button" class="btn sm" id="adm-cr100">+100 cr</button></div>
+      <label for="adm-day">Day</label><div><input id="adm-day" type="number" min="1" max="${CFG.totalDays}" value="${S.day}"> <button type="button" class="btn sm" id="adm-dayset">Start that day</button></div>
+    </div>
+    <div class="actions"><button type="button" class="btn" id="m-close">Log off</button></div>`, 'terminal');
+  el.modal.dataset.kind = 'admin';
+  Snd.play('crt');
+  $('adm-apply').addEventListener('click', () => { Snd.play('switch'); adminSetState($('adm-state').value); });
+  $('adm-cr100').addEventListener('click', () => { S.credits += 100; Snd.play('credit'); $('adm-cr').textContent = S.credits; logEvent('admin-credits', { credits: S.credits }); });
+  $('adm-dayset').addEventListener('click', () => { Snd.play('switch'); adminSetDay(+$('adm-day').value); });
+  $('m-close').addEventListener('click', () => { el.modal.dataset.kind = ''; closeModal(); if (S.phase === 'review' && S.reviewArgs) openReview(...S.reviewArgs); });
+  $('adm-state').focus({ preventScroll: true });
+}
+
 const jump = /^#day(\d{1,2})(?:-(vessel|hollow|conspirator|feral))?(?:\+(\d-\d\d))?$/.exec(location.hash);
 if (jump) {
   const d = clamp(+jump[1], 1, CFG.totalDays);
   S.day = d; S.credits = 60 * d;
-  for (let i = 1; i < d; i++) {
-    const opp = 60 + i * 12, scores = Object.fromEntries(S.rivals.map(r => [r.name, Math.round(opp * r.drive * 0.9)]).concat([[S.name, Math.round(opp * 0.95)]]));
-    S.history.push({ day: i, opportunity: opp, scores });
-    if (isCutDay(i)) { const r = S.rivals.reduce((lo, x, j) => x.drive < S.rivals[lo].drive ? j : lo, 0); S.rivals.splice(r, 1); S.noise.splice(r, 1); }
-  }
-  D.rules.forEach(r => { if (r.unlockDay < d) { S.active.add(r.id); S.flags['memo_' + r.id] = true; } });
+  synthDays(d);
   if (jump[2]) {
     const axis = B.terminals[jump[2]].axis;
     S.axes[axis] = 85;
@@ -3292,10 +3528,16 @@ function step(dt) {
   if (S.time >= shiftLen()) endShift();
 }
 // One cell's share of a step: its subject, its scheduled behaviors, its effects.
+// Constant stimuli: each running fixture pushes its drive by rate points over the shift.
+function constantsOn() { return D.shop.filter(i => i.kind === 'constant' && S.upgrades.has(i.id) && !S.off.has(i.id)); }
 function stepCell(dt) {
   S.humBoost = Math.max(0, S.humBoost - dt * 0.3);
-  if (S.repair) { S.repair.t += dt; if (S.repair.t >= S.repair.dur) finishRepair(); }
-  if (S.medic) { S.medic.t += dt; if (S.medic.t >= S.medic.dur) finishMedic(); }
+  if (!S.patient.dead && !S.patient.gone) for (const it of constantsOn()) {
+    S.axes[it.axis] = clamp(S.axes[it.axis] + it.rate * dt / shiftLen(), 0, 100);
+    if (it.id === 'c_ulf') S.humBoost = Math.max(S.humBoost, 0.35);
+  }
+  if (S.repair) { crewSounds(S.repair, dt, crewSpot(S.repair.kind)); if (S.repair.t >= S.repair.dur) finishRepair(); }
+  if (S.medic) { crewSounds(S.medic, dt, medicSpots(S.medic)[0]); if (S.medic.t >= S.medic.dur) finishMedic(); }
   if (!S.patient.dead && !S.patient.gone) updatePatient(dt);
   // Trait-scheduled behaviors (the alumnus's 17:00 glance at the camera).
   if (mod('scheduled')) {
@@ -3318,7 +3560,7 @@ function frame(now) {
   if (S.phase === 'intro') updateDialogue(dt);
   if (S.pendingEnding && !S.paused) { S.pendingEnding.t -= dt; for (const f of S.fx) f.t += dt; if (S.pendingEnding.t <= 0) ending(S.pendingEnding.id); }
   if (S.phase === 'desk' && !S.paused && !document.hidden && !S.pendingEnding) step(dt * S.speed);
-  Snd.hum();
+  Snd.hum(); Snd.ambient();
   if (S.phase === 'title') drawTitle(T);
   else if (S.phase === 'intro' || S.phase === 'review') drawOffice(T);
   else if (S.phase === 'ending') { if (D.endings[S.endingId].scene === 'desk') drawDesk(T); else drawOffice(T); }
@@ -3340,7 +3582,7 @@ function sim(seconds, bot) {
 window.ELDRITCH_DEBUG = { warn, administer, moveFamily, buy: id => buy(D.shop.find(i => i.id === id)), toggleArm, turnKnob, turnDial, board, ending, endShift, sim, step,
   startDesk, nextDay, enterTerminal, drift, NODE, RULE, axisTop, stateNow, liveRank, closeModal, openFile, openShop, openRules, planNode, drawCell, cell: cell.canvas,
   buySubject, rerollLedger, rollLedger, intake, mergeMods, ledgerPrice, SUBJ, routeTo, useCell, cellField, destBlocker, liveStations, occupied, rebuildDesk,
-  breakItem, damageList, damageTick, buyRepair, startRepair, finishRepair, startMedic, wreck, DMG };
+  breakItem, damageList, damageTick, buyRepair, startRepair, finishRepair, startMedic, wreck, DMG, Snd, protoScope, scopeOptions, protocolTargets, constantsOn, openAdmin, adminSetState, adminSetDay, konamiKey, feralKick };
 el.hint.textContent = 'Best with a mouse and keyboard. Press M to mute.';
 canvas.tabIndex = 0;
 requestAnimationFrame(frame);

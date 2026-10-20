@@ -211,6 +211,15 @@ button { font: inherit; }
 .cr { color: var(--amber); }
 .shop .tag, .tag { font-family: var(--display); font-size: clamp(8px, 1cqw, 12px); text-transform: uppercase; border: 2px solid currentColor; padding: 0.3em 0.5em; white-space: nowrap; }
 .shop .tag.ok { color: #b8efd0; opacity: 1; }
+.shop .btns { display: flex; gap: 0.5em; align-items: center; justify-content: flex-end; }
+.shop select.scope { font: inherit; font-size: 0.9em; color: inherit; background: #062e20; border: 2px solid #2a6a50; padding: 0.15em 0.3em; margin-top: 0.35em; align-self: flex-start; max-width: 100%; }
+.shop select.scope:focus { outline: 2px solid var(--amber); }
+.admin { display: grid; grid-template-columns: auto 1fr; gap: 0.7em 1.2em; align-items: center; margin: 0.8em 0 0.4em; }
+.admin label { font-family: var(--display); font-size: clamp(9px, 1.1cqw, 13px); text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.8; }
+.admin > div { display: flex; gap: 0.6em; align-items: center; flex-wrap: wrap; }
+.admin select, .admin input { font: inherit; font-size: 1em; color: inherit; background: #062e20; border: 2px solid #2a6a50; padding: 0.15em 0.3em; }
+.admin input { width: 4.5em; }
+.admin select:focus, .admin input:focus { outline: 2px solid var(--amber); }
 .shop .tag { opacity: 1; font-size: clamp(8px, 1cqw, 12px); }
 .stats { display: grid; grid-template-columns: repeat(4, auto); gap: 0.1em 0.8em; justify-content: start; margin: 0.4em 0 0.8em; font-variant-numeric: tabular-nums; }
 .stats dt { font-family: var(--display); font-size: 0.5em; text-transform: uppercase; align-self: center; opacity: 0.7; }

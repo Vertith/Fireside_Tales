@@ -132,6 +132,16 @@ window.ELDRITCH_DATA = {
     { id: 'buy_shock',  kind: 'stimulus', stimulus: 'shock',  cost: 80, name: 'Contact Electrodes', desc: 'Adhesive pads, pre-installed under the cot. Pays 1.8x credits.', traits: { authoritarianism: 1, sadism: 1 } },
     { id: 'buy_water',  kind: 'stimulus', stimulus: 'water',  cost: 55, name: 'Pressure Hose',      desc: 'Ceiling nozzle. Cold supply only. Pays 1.5x credits.', traits: { authoritarianism: 1, sadism: 0.5 } },
     { id: 'buy_strobe', kind: 'stimulus', stimulus: 'strobe', cost: 40, name: 'Strobe Array',       desc: 'Disorients without leaving marks. Pays 1.3x credits.', traits: { authoritarianism: 1 } },
+    // Constant stimuli: fixtures that run all shift in every cell and push one drive a little
+    // every hour, whatever the console does. rate = points per shift. Two per track.
+    { id: 'c_edoor',   kind: 'constant', axis: 'defiance',   rate: 7, cost: 125, name: 'Electrified Door',          desc: 'A low current across the door plate, all shift. The subject learns to hate the door, then everything behind it.', traits: { sadism: 2, authoritarianism: 1 } },
+    { id: 'c_heat',    kind: 'constant', axis: 'defiance',   rate: 7, cost: 150, name: 'Heat Cycling',              desc: 'The cell runs 31°C for an hour, then 12°C, on a loop. Nobody sleeps through it.', traits: { sadism: 2 } },
+    { id: 'c_noise',   kind: 'constant', axis: 'compliance', rate: 7, cost: 135, name: 'White Noise Generator',     desc: 'Pink noise at 70 dB from the ceiling grille. Thinking takes effort.', traits: { authoritarianism: 2 } },
+    { id: 'c_vapour',  kind: 'constant', axis: 'compliance', rate: 7, cost: 175, name: 'Sedative Vapour Line',      desc: 'A trickle of the Sedative Mist, all day, below the threshold anyone would notice.', traits: { authoritarianism: 2, sadism: 1 } },
+    { id: 'c_window',  kind: 'constant', axis: 'trust',      rate: 7, cost: 130, name: 'Daylight Projection',       desc: 'A projected window on the rear wall that runs a real sky, dawn to dusk. They stop asking what day it is and start asking you.', traits: { curiosity: 2, authoritarianism: 1 } },
+    { id: 'c_voice',   kind: 'constant', axis: 'trust',      rate: 7, cost: 180, name: 'Voice Line',                desc: 'Your intercom voice, recorded and played back softly all shift: their name, the time, that it is going well.', traits: { curiosity: 2, empathy: -1 } },
+    { id: 'c_ulf',     kind: 'constant', axis: 'fracture',   rate: 7, cost: 140, name: 'Ultra Low Frequency Emitter', desc: '7 Hz through the floor slab. Nothing to hear. The hum in the walls gets company.', traits: { curiosity: 2, sadism: 1 } },
+    { id: 'c_strobe',  kind: 'constant', axis: 'fracture',   rate: 7, cost: 160, name: 'Strobing Lights',           desc: 'The cell lighting flickers on a schedule that is not quite a rhythm.', traits: { sadism: 2, curiosity: 1 } },
     { id: 'buy_cold',   kind: 'stimulus', stimulus: 'cold',   cost: 65, name: 'Climate Override',   desc: 'Drops the cell to 4°C on demand. Pays 1.6x credits.', traits: { authoritarianism: 1, sadism: 1 } },
     { id: 'limiter',    kind: 'upgrade', cost: 60, name: 'Limiter Removal',   desc: 'Unlocks intensity 6 to 10. Higher intensity pays more.', traits: { sadism: 2 } },
     { id: 'alert',      kind: 'upgrade', cost: 30, name: 'Motion Alert',      desc: 'A bezel lamp flashes and names the rule when an infraction starts.', traits: { authoritarianism: 1 } },
@@ -159,7 +169,13 @@ window.ELDRITCH_DATA = {
     { id: 'm_servo',    kind: 'maintenance', cost: 150, name: 'Door Servo Ticket',   desc: 'Report a "sticky" servo on the Cell 4 door. Maintenance will take it apart.', traits: { empathy: 2, curiosity: 1 } },
     { id: 'm_tape',     kind: 'maintenance', cost: 250, requires: 'm_servo', name: 'Camera Loop Tape', desc: 'Twenty minutes of an empty cell, for maintenance windows.', traits: { empathy: 2, curiosity: 1 } },
     { id: 'm_release',  kind: 'maintenance', cost: 500, requires: 'm_tape', name: 'Door Release Override', desc: 'Schedules a maintenance window in Cell 4 tonight. The door will be open for twenty minutes.', traits: { empathy: 4 }, escape: true },
-    { id: 'protocol0',  kind: 'protocol', cost: 1000, name: 'Protocol Zero', hiddenName: '█████████████', desc: 'Final rehabilitation of every subject on your monitors. Effective immediately. Cannot be undone.',
+    // Protocols: one per terminal state, then Protocol Zero. Each is run on one cell, two cells
+    // or every cell on the console; the price scales with the number of cells.
+    { id: 'p_lobotomy',  kind: 'protocol', consumable: true, terminal: 'hollow',      cost: 750, name: 'Lobotomy Protocol',  desc: 'Transorbital. Twenty minutes under Medical, in the cell. The body comes back, the subject does not.', reveal: { day: 4 }, traits: { sadism: 6, authoritarianism: 6 } },
+    { id: 'p_serum',     kind: 'protocol', consumable: true, terminal: 'feral',       cost: 800, name: 'Serum Injection',    desc: 'Anabolic serum in the water line. The subject aggression expected to be extreme.', reveal: { day: 4 }, traits: { sadism: 5, curiosity: 3 } },
+    { id: 'p_exposure',  kind: 'protocol', consumable: true, terminal: 'vessel',      cost: 850, name: 'Exposure Protocol',  desc: 'The hum is isolated and directional audio amplifiers are utilized. Subject personality to be closely monitored post Exposure.', reveal: { day: 4 }, traits: { curiosity: 6, sadism: 3 } },
+    { id: 'p_clearance', kind: 'protocol', consumable: true, terminal: 'conspirator', cost: 900, name: 'Clearance Protocol', desc: 'The subject is read your name, your shift, guard rotation, and left clues that you arranged it.', reveal: { day: 4 }, traits: { authoritarianism: 4, curiosity: 4 } },
+    { id: 'protocol0',  kind: 'protocol', consumable: true, cost: 1000, name: 'Protocol Zero', hiddenName: '█████████████', desc: 'Final rehabilitation of every subject in the selected cells. Effective immediately. Cannot be undone.',
       reveal: { collapses: 1, orMaxIntensity: 9 }, traits: { sadism: 10, authoritarianism: 5 } },
   ],
 
@@ -217,6 +233,7 @@ window.ELDRITCH_DATA = {
     repeat:        ['The subject has already been corrected.', 'Once is rehabilitation, {name}.', 'That one was extra.'],
     missed:        ['You missed one. The Initiative notices.', 'An infraction went uncorrected.', 'Looking away is also a choice, {name}.'],
     talk:          ['You are talking to them? Unusual.', 'Conversation is not on the list of approved stimuli.'],
+    protocolRun:   ['Noted, {name}. The Initiative appreciates initiative.', 'That is a line most people take longer to cross.', 'Filed. Medical will want to know whose signature is on it. I said mine.'],
     collapse:      ['Subject unresponsive. Medical has been informed. Eventually.', 'Their heart is doing something interesting. Keep going, or do not.'],
     unarmed:       ['The console is not armed. Flip ARM first.'],
     lastPlace:     ['You are currently last on the board, {name}.', '{rival} is ahead of you, ensure you are enforcing the rules.', 'The bottom of the board is a lonely place, {name}.'],

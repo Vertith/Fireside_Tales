@@ -34,7 +34,7 @@ window.ELDRITCH_BEHAVIORS = {
     compliantGap: 0.45,     // infraction gap divides by (compliantGap + (1 - compliantGap) x share of families still offending)
     rivalFloor: 0.8,        // rivals earn on at least this share of your subject's recent average opportunity
     feedEvery: 9,          // Conspirator: seconds between fed infractions (after 11:00, when you are in the bottom two)
-    feralGap: 0.5, feralMult: 1.4, feralMedicalEvery: 4,
+    feralGap: 0.5, feralMult: 1.4, feralMedicalEvery: 4, feralScale: 1.18,
     trustWarnBonus: 0.2,    // intercom pay bonus once they trust you (trust 40+); a Conspirator adds conspiratorWarnBonus
     conspiratorWarnBonus: 0.35,
     vesselGap: 7, vesselMult: 1.5,
@@ -487,7 +487,7 @@ window.ELDRITCH_BEHAVIORS = {
     },
     feral: {
       axis: 'defiance', label: 'Feral',
-      enter: 'Subject tears the electrode pads from under the cot (SHOCK unavailable until the next morning), cracks the camera lens with the tray (feed shows a crack; STARE rule cannot occur), and begins a hunger strike.',
+      enter: 'Subject kicks the cot apart (a Maintenance ticket; no cot means sitting on the floor), cracks the camera lens with the tray (feed shows a crack; STARE rule cannot occur), and begins a hunger strike. Drawn a shade bigger than before.',
       lines: ['COME IN HERE.', 'COME IN HERE AND SAY IT.'],
       behaviorRule: 'Infraction gap halves. Credits x1.4. Every third stimulus triggers a Medical intervention: the feed goes to TRANSFER for one in-game hour and no credits are earned during it. A collapse while Feral ends the day at once (Medical), forfeiting the rest of the day.',
       economy: 'Loud and lucrative, then it falls apart. Feral is the fastest route to the Protocol Zero reveal and to being cut.',
