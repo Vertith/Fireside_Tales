@@ -673,18 +673,17 @@ body {
       '...f..ff.tt.',
       '..ff..f.....'
     ], map: { s: C.steel, f: C.fog, t: C.paperShade } },
-    intruders: { rows: [ // a ski mask
-      '...nnnnn...',
-      '..nNNNNNn..',
-      '.nNNNNNNNn.',
-      '.nNNNNNNNn.',
-      '.nsesNsesn.',
-      '.nNNNNNNNn.',
-      '.nNNsssNNn.',
-      '.nNNNNNNNn.',
-      '..nNNNNNn..',
-      '...nnnnn...'
-    ], map: { n: C.red0, N: C.red1, s: C.skinA2, e: C.night0 } },
+    intruders: { rows: [ // a flashlight standing on end, its beam pointing up into the dark
+      '...hhhhh...',
+      '...hLLLh...',
+      '...hhhhh...',
+      '....bBb....',
+      '....bBb....',
+      '....bsb....',
+      '....bBb....',
+      '....bBb....',
+      '....bbb....'
+    ], map: { h: C.fog, L: C.lamp4, b: C.night3, B: C.steel, s: C.red1 } },
     walks: { rows: [
       '...bbbb....',
       '...bBBb....',
@@ -765,7 +764,17 @@ body {
       if (hover === t.id) outline(g, p.rows, o[0], o[1], C.lamp4);
       sprite(g, p.rows, p.map, o[0], o[1]);
       if (t.id === 'emit' && tick % 50 < 4) px(g, o[0] + 7, o[1] + 4, C.fut1);
-      if (t.id === 'intruders' && tick % 90 < 3) { px(g, o[0] + 3, o[1] + 4, C.skinA2); px(g, o[0] + 7, o[1] + 4, C.skinA2); } // a blink
+      if (t.id === 'intruders' && tick % 140 > 4) { // a faint beam that cuts out now and then, like a failing battery
+        for (var by = 1; by <= 12; by++) {
+          var half = 1 + Math.floor(by * 0.4);
+          for (var bx = -half; bx <= half; bx++) {
+            var edge = Math.abs(bx) === half, far = by > 7;
+            if (by <= 3 && !edge) px(g, o[0] + 5 + bx, o[1] - by, C.lamp4);                     // bright near the lens
+            else if (!far && (!edge || (bx + by) % 2 === 0)) px(g, o[0] + 5 + bx, o[1] - by, C.lamp3);
+            else if ((bx + by) % 2 === 0 && (by < 11 || !edge)) px(g, o[0] + 5 + bx, o[1] - by, C.wood3); // fading out
+          }
+        }
+      }
       if (t.id === 'lab') bubbles.forEach(function (b) { px(g, o[0] + b.x, o[1] + Math.round(b.y), C.crt2); });
     });
     drawLogTrophies();
